@@ -1,61 +1,132 @@
-FaceFusion
+DeepTrace
 ==========
 
-> Industry leading face manipulation platform.
+> Modular High-Accuracy Deepfake Generation Pipeline for Academic Research
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/facefusion/facefusion/ci.yml.svg?branch=master)](https://github.com/facefusion/facefusion/actions?query=workflow:ci)
-[![Coverage Status](https://img.shields.io/coveralls/facefusion/facefusion.svg)](https://coveralls.io/r/facefusion/facefusion)
-![License](https://img.shields.io/badge/license-OpenRAIL--AS-green)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Ali7040/Deepfake-gen-pipeline/ci.yml.svg?branch=main)](https://github.com/Ali7040/Deepfake-gen-pipeline/actions?query=workflow:ci)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 
 
 Preview
 -------
 
-![Preview](https://raw.githubusercontent.com/facefusion/facefusion/master/.github/preview.png?sanitize=true)
+![Preview](.github/preview.png)
 
 
 Installation
 ------------
 
-Be aware, the [installation](https://docs.facefusion.io/installation) needs technical skills and is not recommended for beginners. In case you are not comfortable using a terminal, our [Windows Installer](http://windows-installer.facefusion.io) and [macOS Installer](http://macos-installer.facefusion.io) get you started.
+This is a Final Year Project (FYP) focused on deepfake generation for academic research. The installation requires Python 3.10+ and technical knowledge.
+
+### Quick Start
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Ali7040/Deepfake-gen-pipeline.git
+   cd Deepfake-gen-pipeline
+   ```
+
+2. Install dependencies:
+   ```bash
+   python install.py
+   ```
+
+3. Run the application:
+   ```bash
+   python deeptrace.py run
+   ```
+
+For detailed setup instructions, see [QUICK_START.md](QUICK_START.md).
 
 
 Usage
 -----
 
-Run the command:
+### Basic Commands
 
+```bash
+# Run with GUI
+python deeptrace.py run
+
+# Run in headless mode
+python deeptrace.py headless-run
+
+# Get help
+python deeptrace.py --help
 ```
-python facefusion.py [commands] [options]
 
-options:
-  -h, --help                                      show this help message and exit
-  -v, --version                                   show program's version number and exit
+### Simple Web Interface
 
-commands:
-    run                                           run the program
-    headless-run                                  run the program in headless mode
-    batch-run                                     run the program in batch mode
-    force-download                                force automate downloads and exit
-    benchmark                                     benchmark the program
-    job-list                                      list jobs by status
-    job-create                                    create a drafted job
-    job-submit                                    submit a drafted job to become a queued job
-    job-submit-all                                submit all drafted jobs to become a queued jobs
-    job-delete                                    delete a drafted, queued, failed or completed job
-    job-delete-all                                delete all drafted, queued, failed and completed jobs
-    job-add-step                                  add a step to a drafted job
-    job-remix-step                                remix a previous step from a drafted job
-    job-insert-step                               insert a step to a drafted job
-    job-remove-step                               remove a step from a drafted job
-    job-run                                       run a queued job
-    job-run-all                                   run all queued jobs
-    job-retry                                     retry a failed job
-    job-retry-all                                 retry all failed jobs
+For quick testing, use the simplified Flask web app:
+
+```bash
+python simple_app.py
 ```
+
+Then open http://localhost:5000 in your browser.
+
+
+Optimizations
+-------------
+
+This project includes comprehensive optimizations for performance and efficiency:
+
+### Performance Enhancements
+- **ONNX Runtime Optimization**: Leveraged FP16 precision and graph optimizations
+- **Multi-threading**: Parallel processing for face detection and analysis
+- **GPU Acceleration**: CUDA and DirectML support for faster inference
+- **Model Caching**: Intelligent caching to reduce load times
+- **Memory Management**: Efficient resource allocation and cleanup
+
+### Code Quality
+- **Python 3.13 Compatibility**: Full support for latest Python features
+- **Error Handling**: Robust exception handling and logging
+- **Type Hints**: Complete type annotations for better IDE support
+- **Modular Architecture**: Clean separation of concerns for maintainability
+
+### Benchmarks
+Run performance tests:
+```bash
+python test_optimizations.py
+```
+
+For detailed optimization documentation, see [OPTIMIZATION_COMPLETE.md](OPTIMIZATION_COMPLETE.md) and [ADVANCED_OPTIMIZATIONS.md](ADVANCED_OPTIMIZATIONS.md).
 
 
 Documentation
 -------------
 
-Read the [documentation](https://docs.facefusion.io) for a deep dive.
+### FYP Documentation
+
+- [Technical Documentation](FYP_TECHNICAL_DOCUMENTATION.md) - Deep dive into models and architectures
+- [Defense Guide](FYP_DEFENSE_GUIDE.md) - Q&A for FYP defense preparation
+- [Visual Diagrams](FYP_VISUAL_DIAGRAMS.md) - System architecture and data flow diagrams
+- [Quick Start Guide](QUICK_START.md) - Getting started with DeepTrace
+- [Migration Guide](MIGRATION_TO_DEEPTRACE.md) - Rebranding and optimization details
+
+### Features
+
+- **Face Detection**: YOLO-Face, RetinaFace, SCRFD models
+- **Face Recognition**: ArcFace (ResNet-50) for identity verification
+- **Face Swapping**: InsWapper, GhostFace, BlendSwap, HyperSwap, SimSwap
+- **Face Enhancement**: GFPGAN, Real-ESRGAN for quality improvement
+- **Lip Sync**: Wav2Lip integration for talking video generation
+- **Audio Generation**: Text-to-speech capabilities
+- **Modular Pipeline**: Each component can run independently or chained together
+
+### Academic Use
+
+This project is developed for academic research and FYP demonstration. Please use responsibly and ethically:
+- Always watermark generated content
+- Respect privacy and consent
+- Follow institutional ethics guidelines
+- Document all experiments and results
+
+### Repository
+
+GitHub: [https://github.com/Ali7040/Deepfake-gen-pipeline](https://github.com/Ali7040/Deepfake-gen-pipeline)
+
+### License
+
+See [LICENSE.md](LICENSE.md) for details.
