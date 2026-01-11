@@ -1,0 +1,34 @@
+# Simple Fast Face Swap Application - Requirements
+# Optimized for speed and performance
+
+# Build tools (install first)
+setuptools>=65.5.0
+wheel>=0.38.0
+
+# Core dependencies
+Flask>=3.0.0
+Werkzeug>=3.0.0
+
+# Image/Video processing (compatible with Python 3.13)
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# ONNX Runtime - CPU version (uncomment based on your needs)
+# Note: For Python 3.13, you may need to use CPU version or wait for GPU version update
+onnxruntime>=1.16.0
+
+# For NVIDIA GPU (CUDA) - Use only if compatible with your Python version
+# Uncomment ONE of these if you have NVIDIA GPU:
+# onnxruntime-gpu>=1.16.0  # CUDA 11.x
+# onnxruntime-gpu>=1.17.0  # CUDA 12.x
+
+# Performance monitoring
+psutil>=5.9.0
+
+# Optional for model optimization
+# onnxruntime-tools>=1.7.0
+
+# Development dependencies (optional)
+# pytest>=7.4.0
+# black>=23.0.0
