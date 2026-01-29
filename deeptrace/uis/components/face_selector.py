@@ -52,7 +52,7 @@ def render() -> None:
 		reference_face_gallery_options['value'] = extract_gallery_frames(target_vision_frame)
 	FACE_SELECTOR_MODE_DROPDOWN = gradio.Dropdown(
 		label = translator.get('uis.face_selector_mode_dropdown'),
-		choices = facefusion.choices.face_selector_modes,
+		choices = deeptrace.choices.face_selector_modes,
 		value = state_manager.get_item('face_selector_mode')
 	)
 	REFERENCE_FACE_POSITION_GALLERY = gradio.Gallery(**reference_face_gallery_options)
@@ -60,35 +60,35 @@ def render() -> None:
 		with gradio.Row():
 			FACE_SELECTOR_ORDER_DROPDOWN = gradio.Dropdown(
 				label = translator.get('uis.face_selector_order_dropdown'),
-				choices = facefusion.choices.face_selector_orders,
+				choices = deeptrace.choices.face_selector_orders,
 				value = state_manager.get_item('face_selector_order')
 			)
 			FACE_SELECTOR_GENDER_DROPDOWN = gradio.Dropdown(
 				label = translator.get('uis.face_selector_gender_dropdown'),
-				choices = [ 'none' ] + facefusion.choices.face_selector_genders,
+				choices = [ 'none' ] + deeptrace.choices.face_selector_genders,
 				value = state_manager.get_item('face_selector_gender') or 'none'
 			)
 			FACE_SELECTOR_RACE_DROPDOWN = gradio.Dropdown(
 				label = translator.get('uis.face_selector_race_dropdown'),
-				choices = [ 'none' ] + facefusion.choices.face_selector_races,
+				choices = [ 'none' ] + deeptrace.choices.face_selector_races,
 				value = state_manager.get_item('face_selector_race') or 'none'
 			)
 		with gradio.Row():
-			face_selector_age_start = state_manager.get_item('face_selector_age_start') or facefusion.choices.face_selector_age_range[0]
-			face_selector_age_end = state_manager.get_item('face_selector_age_end') or facefusion.choices.face_selector_age_range[-1]
+			face_selector_age_start = state_manager.get_item('face_selector_age_start') or deeptrace.choices.face_selector_age_range[0]
+			face_selector_age_end = state_manager.get_item('face_selector_age_end') or deeptrace.choices.face_selector_age_range[-1]
 			FACE_SELECTOR_AGE_RANGE_SLIDER = RangeSlider(
 				label = translator.get('uis.face_selector_age_range_slider'),
-				minimum = facefusion.choices.face_selector_age_range[0],
-				maximum = facefusion.choices.face_selector_age_range[-1],
+				minimum = deeptrace.choices.face_selector_age_range[0],
+				maximum = deeptrace.choices.face_selector_age_range[-1],
 				value = (face_selector_age_start, face_selector_age_end),
-				step = calculate_int_step(facefusion.choices.face_selector_age_range)
+				step = calculate_int_step(deeptrace.choices.face_selector_age_range)
 			)
 	REFERENCE_FACE_DISTANCE_SLIDER = gradio.Slider(
 		label = translator.get('uis.reference_face_distance_slider'),
 		value = state_manager.get_item('reference_face_distance'),
-		step = calculate_float_step(facefusion.choices.reference_face_distance_range),
-		minimum = facefusion.choices.reference_face_distance_range[0],
-		maximum = facefusion.choices.reference_face_distance_range[-1],
+		step = calculate_float_step(deeptrace.choices.reference_face_distance_range),
+		minimum = deeptrace.choices.reference_face_distance_range[0],
+		maximum = deeptrace.choices.reference_face_distance_range[-1],
 		visible = 'reference' in state_manager.get_item('face_selector_mode')
 	)
 	register_ui_component('face_selector_mode_dropdown', FACE_SELECTOR_MODE_DROPDOWN)

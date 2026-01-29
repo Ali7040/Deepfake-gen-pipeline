@@ -41,36 +41,36 @@ def render() -> None:
 	with gradio.Row():
 		FACE_OCCLUDER_MODEL_DROPDOWN = gradio.Dropdown(
 			label = translator.get('uis.face_occluder_model_dropdown'),
-			choices = facefusion.choices.face_occluder_models,
+			choices = deeptrace.choices.face_occluder_models,
 			value = state_manager.get_item('face_occluder_model')
 		)
 		FACE_PARSER_MODEL_DROPDOWN = gradio.Dropdown(
 			label = translator.get('uis.face_parser_model_dropdown'),
-			choices = facefusion.choices.face_parser_models,
+			choices = deeptrace.choices.face_parser_models,
 			value = state_manager.get_item('face_parser_model')
 		)
 	FACE_MASK_TYPES_CHECKBOX_GROUP = gradio.CheckboxGroup(
 		label = translator.get('uis.face_mask_types_checkbox_group'),
-		choices = facefusion.choices.face_mask_types,
+		choices = deeptrace.choices.face_mask_types,
 		value = state_manager.get_item('face_mask_types')
 	)
 	FACE_MASK_AREAS_CHECKBOX_GROUP = gradio.CheckboxGroup(
 		label = translator.get('uis.face_mask_areas_checkbox_group'),
-		choices = facefusion.choices.face_mask_areas,
+		choices = deeptrace.choices.face_mask_areas,
 		value = state_manager.get_item('face_mask_areas'),
 		visible = has_area_mask
 	)
 	FACE_MASK_REGIONS_CHECKBOX_GROUP = gradio.CheckboxGroup(
 		label = translator.get('uis.face_mask_regions_checkbox_group'),
-		choices = facefusion.choices.face_mask_regions,
+		choices = deeptrace.choices.face_mask_regions,
 		value = state_manager.get_item('face_mask_regions'),
 		visible = has_region_mask
 	)
 	FACE_MASK_BLUR_SLIDER = gradio.Slider(
 		label = translator.get('uis.face_mask_blur_slider'),
-		step = calculate_float_step(facefusion.choices.face_mask_blur_range),
-		minimum = facefusion.choices.face_mask_blur_range[0],
-		maximum = facefusion.choices.face_mask_blur_range[-1],
+		step = calculate_float_step(deeptrace.choices.face_mask_blur_range),
+		minimum = deeptrace.choices.face_mask_blur_range[0],
+		maximum = deeptrace.choices.face_mask_blur_range[-1],
 		value = state_manager.get_item('face_mask_blur'),
 		visible = has_box_mask
 	)
@@ -78,31 +78,31 @@ def render() -> None:
 		with gradio.Row():
 			FACE_MASK_PADDING_TOP_SLIDER = gradio.Slider(
 				label = translator.get('uis.face_mask_padding_top_slider'),
-				step = calculate_int_step(facefusion.choices.face_mask_padding_range),
-				minimum = facefusion.choices.face_mask_padding_range[0],
-				maximum = facefusion.choices.face_mask_padding_range[-1],
+				step = calculate_int_step(deeptrace.choices.face_mask_padding_range),
+				minimum = deeptrace.choices.face_mask_padding_range[0],
+				maximum = deeptrace.choices.face_mask_padding_range[-1],
 				value = state_manager.get_item('face_mask_padding')[0]
 			)
 			FACE_MASK_PADDING_RIGHT_SLIDER = gradio.Slider(
 				label = translator.get('uis.face_mask_padding_right_slider'),
-				step = calculate_int_step(facefusion.choices.face_mask_padding_range),
-				minimum = facefusion.choices.face_mask_padding_range[0],
-				maximum = facefusion.choices.face_mask_padding_range[-1],
+				step = calculate_int_step(deeptrace.choices.face_mask_padding_range),
+				minimum = deeptrace.choices.face_mask_padding_range[0],
+				maximum = deeptrace.choices.face_mask_padding_range[-1],
 				value = state_manager.get_item('face_mask_padding')[1]
 			)
 		with gradio.Row():
 			FACE_MASK_PADDING_BOTTOM_SLIDER = gradio.Slider(
 				label = translator.get('uis.face_mask_padding_bottom_slider'),
-				step = calculate_int_step(facefusion.choices.face_mask_padding_range),
-				minimum = facefusion.choices.face_mask_padding_range[0],
-				maximum = facefusion.choices.face_mask_padding_range[-1],
+				step = calculate_int_step(deeptrace.choices.face_mask_padding_range),
+				minimum = deeptrace.choices.face_mask_padding_range[0],
+				maximum = deeptrace.choices.face_mask_padding_range[-1],
 				value = state_manager.get_item('face_mask_padding')[2]
 			)
 			FACE_MASK_PADDING_LEFT_SLIDER = gradio.Slider(
 				label = translator.get('uis.face_mask_padding_left_slider'),
-				step = calculate_int_step(facefusion.choices.face_mask_padding_range),
-				minimum = facefusion.choices.face_mask_padding_range[0],
-				maximum = facefusion.choices.face_mask_padding_range[-1],
+				step = calculate_int_step(deeptrace.choices.face_mask_padding_range),
+				minimum = deeptrace.choices.face_mask_padding_range[0],
+				maximum = deeptrace.choices.face_mask_padding_range[-1],
 				value = state_manager.get_item('face_mask_padding')[3]
 			)
 	register_ui_component('face_occluder_model_dropdown', FACE_OCCLUDER_MODEL_DROPDOWN)
@@ -149,7 +149,7 @@ def update_face_parser_model(face_parser_model : FaceParserModel) -> gradio.Drop
 
 
 def update_face_mask_types(face_mask_types : List[FaceMaskType]) -> Tuple[gradio.CheckboxGroup, gradio.CheckboxGroup, gradio.CheckboxGroup, gradio.Slider, gradio.Group]:
-	face_mask_types = face_mask_types or facefusion.choices.face_mask_types
+	face_mask_types = face_mask_types or deeptrace.choices.face_mask_types
 	state_manager.set_item('face_mask_types', face_mask_types)
 	has_box_mask = 'box' in face_mask_types
 	has_area_mask = 'area' in face_mask_types
@@ -158,13 +158,13 @@ def update_face_mask_types(face_mask_types : List[FaceMaskType]) -> Tuple[gradio
 
 
 def update_face_mask_areas(face_mask_areas : List[FaceMaskArea]) -> gradio.CheckboxGroup:
-	face_mask_areas = face_mask_areas or facefusion.choices.face_mask_areas
+	face_mask_areas = face_mask_areas or deeptrace.choices.face_mask_areas
 	state_manager.set_item('face_mask_areas', face_mask_areas)
 	return gradio.CheckboxGroup(value = state_manager.get_item('face_mask_areas'))
 
 
 def update_face_mask_regions(face_mask_regions : List[FaceMaskRegion]) -> gradio.CheckboxGroup:
-	face_mask_regions = face_mask_regions or facefusion.choices.face_mask_regions
+	face_mask_regions = face_mask_regions or deeptrace.choices.face_mask_regions
 	state_manager.set_item('face_mask_regions', face_mask_regions)
 	return gradio.CheckboxGroup(value = state_manager.get_item('face_mask_regions'))
 
@@ -174,8 +174,8 @@ def update_face_mask_blur(face_mask_blur : float) -> None:
 
 
 def update_face_mask_padding(face_mask_padding_top : float, face_mask_padding_right : float, face_mask_padding_bottom : float, face_mask_padding_left : float) -> None:
-	face_mask_padding_top = sanitize_int_range(int(face_mask_padding_top), facefusion.choices.face_mask_padding_range)
-	face_mask_padding_right = sanitize_int_range(int(face_mask_padding_right), facefusion.choices.face_mask_padding_range)
-	face_mask_padding_bottom = sanitize_int_range(int(face_mask_padding_bottom), facefusion.choices.face_mask_padding_range)
-	face_mask_padding_left = sanitize_int_range(int(face_mask_padding_left), facefusion.choices.face_mask_padding_range)
+	face_mask_padding_top = sanitize_int_range(int(face_mask_padding_top), deeptrace.choices.face_mask_padding_range)
+	face_mask_padding_right = sanitize_int_range(int(face_mask_padding_right), deeptrace.choices.face_mask_padding_range)
+	face_mask_padding_bottom = sanitize_int_range(int(face_mask_padding_bottom), deeptrace.choices.face_mask_padding_range)
+	face_mask_padding_left = sanitize_int_range(int(face_mask_padding_left), deeptrace.choices.face_mask_padding_range)
 	state_manager.set_item('face_mask_padding', (face_mask_padding_top, face_mask_padding_right, face_mask_padding_bottom, face_mask_padding_left))

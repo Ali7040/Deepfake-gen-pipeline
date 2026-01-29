@@ -19,7 +19,7 @@ def load(__locales__ : Locales, module_name : str) -> None:
 	LOCALE_POOL_SET[module_name] = __locales__
 
 
-def get(notation : str, module_name : str = 'facefusion') -> Optional[str]:
+def get(notation : str, module_name : str = 'deeptrace') -> Optional[str]:
 	if module_name not in LOCALE_POOL_SET:
 		__autoload__(module_name)
 

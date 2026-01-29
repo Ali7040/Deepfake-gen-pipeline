@@ -15,9 +15,9 @@ def render() -> None:
 	EXECUTION_THREAD_COUNT_SLIDER = gradio.Slider(
 		label = translator.get('uis.execution_thread_count_slider'),
 		value = state_manager.get_item('execution_thread_count'),
-		step = calculate_int_step(facefusion.choices.execution_thread_count_range),
-		minimum = facefusion.choices.execution_thread_count_range[0],
-		maximum = facefusion.choices.execution_thread_count_range[-1]
+		step = calculate_int_step(deeptrace.choices.execution_thread_count_range),
+		minimum = deeptrace.choices.execution_thread_count_range[0],
+		maximum = deeptrace.choices.execution_thread_count_range[-1]
 	)
 
 

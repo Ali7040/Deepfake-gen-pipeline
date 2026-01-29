@@ -28,7 +28,7 @@ def get_temp_frames_pattern(target_path : str, temp_frame_prefix : str) -> str:
 
 def get_temp_directory_path(file_path : str) -> str:
 	temp_file_name = get_file_name(file_path)
-	return os.path.join(state_manager.get_item('temp_path'), 'facefusion', temp_file_name)
+	return os.path.join(state_manager.get_item('temp_path'), 'deeptrace', temp_file_name)
 
 
 def create_temp_directory(file_path : str) -> bool:

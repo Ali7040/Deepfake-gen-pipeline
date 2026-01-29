@@ -40,17 +40,17 @@ def render() -> None:
 	OUTPUT_IMAGE_QUALITY_SLIDER = gradio.Slider(
 		label = translator.get('uis.output_image_quality_slider'),
 		value = state_manager.get_item('output_image_quality'),
-		step = calculate_int_step(facefusion.choices.output_image_quality_range),
-		minimum = facefusion.choices.output_image_quality_range[0],
-		maximum = facefusion.choices.output_image_quality_range[-1],
+		step = calculate_int_step(deeptrace.choices.output_image_quality_range),
+		minimum = deeptrace.choices.output_image_quality_range[0],
+		maximum = deeptrace.choices.output_image_quality_range[-1],
 		visible = is_image(state_manager.get_item('target_path'))
 	)
 	OUTPUT_IMAGE_SCALE_SLIDER = gradio.Slider(
 		label = translator.get('uis.output_image_scale_slider'),
-		step = calculate_float_step(facefusion.choices.output_image_scale_range),
+		step = calculate_float_step(deeptrace.choices.output_image_scale_range),
 		value = state_manager.get_item('output_image_scale'),
-		minimum = facefusion.choices.output_image_scale_range[0],
-		maximum = facefusion.choices.output_image_scale_range[-1],
+		minimum = deeptrace.choices.output_image_scale_range[0],
+		maximum = deeptrace.choices.output_image_scale_range[-1],
 		visible = is_image(state_manager.get_item('target_path'))
 	)
 	OUTPUT_AUDIO_ENCODER_DROPDOWN = gradio.Dropdown(
@@ -62,17 +62,17 @@ def render() -> None:
 	OUTPUT_AUDIO_QUALITY_SLIDER = gradio.Slider(
 		label = translator.get('uis.output_audio_quality_slider'),
 		value = state_manager.get_item('output_audio_quality'),
-		step = calculate_int_step(facefusion.choices.output_audio_quality_range),
-		minimum = facefusion.choices.output_audio_quality_range[0],
-		maximum = facefusion.choices.output_audio_quality_range[-1],
+		step = calculate_int_step(deeptrace.choices.output_audio_quality_range),
+		minimum = deeptrace.choices.output_audio_quality_range[0],
+		maximum = deeptrace.choices.output_audio_quality_range[-1],
 		visible = is_video(state_manager.get_item('target_path'))
 	)
 	OUTPUT_AUDIO_VOLUME_SLIDER = gradio.Slider(
 		label = translator.get('uis.output_audio_volume_slider'),
 		value = state_manager.get_item('output_audio_volume'),
-		step = calculate_int_step(facefusion.choices.output_audio_volume_range),
-		minimum = facefusion.choices.output_audio_volume_range[0],
-		maximum = facefusion.choices.output_audio_volume_range[-1],
+		step = calculate_int_step(deeptrace.choices.output_audio_volume_range),
+		minimum = deeptrace.choices.output_audio_volume_range[0],
+		maximum = deeptrace.choices.output_audio_volume_range[-1],
 		visible = is_video(state_manager.get_item('target_path'))
 	)
 	OUTPUT_VIDEO_ENCODER_DROPDOWN = gradio.Dropdown(
@@ -83,24 +83,24 @@ def render() -> None:
 	)
 	OUTPUT_VIDEO_PRESET_DROPDOWN = gradio.Dropdown(
 		label = translator.get('uis.output_video_preset_dropdown'),
-		choices = facefusion.choices.output_video_presets,
+		choices = deeptrace.choices.output_video_presets,
 		value = state_manager.get_item('output_video_preset'),
 		visible = is_video(state_manager.get_item('target_path'))
 	)
 	OUTPUT_VIDEO_QUALITY_SLIDER = gradio.Slider(
 		label = translator.get('uis.output_video_quality_slider'),
 		value = state_manager.get_item('output_video_quality'),
-		step = calculate_int_step(facefusion.choices.output_video_quality_range),
-		minimum = facefusion.choices.output_video_quality_range[0],
-		maximum = facefusion.choices.output_video_quality_range[-1],
+		step = calculate_int_step(deeptrace.choices.output_video_quality_range),
+		minimum = deeptrace.choices.output_video_quality_range[0],
+		maximum = deeptrace.choices.output_video_quality_range[-1],
 		visible = is_video(state_manager.get_item('target_path'))
 	)
 	OUTPUT_VIDEO_SCALE_SLIDER = gradio.Slider(
 		label = translator.get('uis.output_video_scale_slider'),
-		step = calculate_float_step(facefusion.choices.output_video_scale_range),
+		step = calculate_float_step(deeptrace.choices.output_video_scale_range),
 		value = state_manager.get_item('output_video_scale'),
-		minimum = facefusion.choices.output_video_scale_range[0],
-		maximum = facefusion.choices.output_video_scale_range[-1],
+		minimum = deeptrace.choices.output_video_scale_range[0],
+		maximum = deeptrace.choices.output_video_scale_range[-1],
 		visible = is_video(state_manager.get_item('target_path'))
 	)
 	OUTPUT_VIDEO_FPS_SLIDER = gradio.Slider(

@@ -7,7 +7,7 @@ METADATA =\
 	'version': '3.5.2',
 	'license': 'OpenRAIL-AS',
 	'author': 'Henry Ruhs',
-	'url': 'https://facefusion.io'
+	'url': 'https://deeptrace.io'
 }
 
 

@@ -16,7 +16,7 @@ def render() -> None:
 
 	VOICE_EXTRACTOR_MODEL_DROPDOWN = gradio.Dropdown(
 		label = translator.get('uis.voice_extractor_model_dropdown'),
-		choices = facefusion.choices.voice_extractor_models,
+		choices = deeptrace.choices.voice_extractor_models,
 		value = state_manager.get_item('voice_extractor_model'),
 		visible = is_video(state_manager.get_item('target_path'))
 	)

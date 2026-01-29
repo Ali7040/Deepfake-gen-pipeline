@@ -29,33 +29,33 @@ def render() -> None:
 		'label': translator.get('uis.face_detector_size_dropdown'),
 		'value': state_manager.get_item('face_detector_size')
 	}
-	if state_manager.get_item('face_detector_size') in facefusion.choices.face_detector_set[state_manager.get_item('face_detector_model')]:
-		face_detector_size_dropdown_options['choices'] = facefusion.choices.face_detector_set[state_manager.get_item('face_detector_model')]
+	if state_manager.get_item('face_detector_size') in deeptrace.choices.face_detector_set[state_manager.get_item('face_detector_model')]:
+		face_detector_size_dropdown_options['choices'] = deeptrace.choices.face_detector_set[state_manager.get_item('face_detector_model')]
 	with gradio.Row():
 		FACE_DETECTOR_MODEL_DROPDOWN = gradio.Dropdown(
 			label = translator.get('uis.face_detector_model_dropdown'),
-			choices = facefusion.choices.face_detector_models,
+			choices = deeptrace.choices.face_detector_models,
 			value = state_manager.get_item('face_detector_model')
 		)
 		FACE_DETECTOR_SIZE_DROPDOWN = gradio.Dropdown(**face_detector_size_dropdown_options)
 	FACE_DETECTOR_MARGIN_SLIDER = gradio.Slider(
 		label = translator.get('uis.face_detector_margin_slider'),
 		value = state_manager.get_item('face_detector_margin')[0],
-		step = calculate_float_step(facefusion.choices.face_detector_margin_range),
-		minimum = facefusion.choices.face_detector_margin_range[0],
-		maximum = facefusion.choices.face_detector_margin_range[-1]
+		step = calculate_float_step(deeptrace.choices.face_detector_margin_range),
+		minimum = deeptrace.choices.face_detector_margin_range[0],
+		maximum = deeptrace.choices.face_detector_margin_range[-1]
 	)
 	FACE_DETECTOR_ANGLES_CHECKBOX_GROUP = gradio.CheckboxGroup(
 		label = translator.get('uis.face_detector_angles_checkbox_group'),
-		choices = facefusion.choices.face_detector_angles,
+		choices = deeptrace.choices.face_detector_angles,
 		value = state_manager.get_item('face_detector_angles')
 	)
 	FACE_DETECTOR_SCORE_SLIDER = gradio.Slider(
 		label = translator.get('uis.face_detector_score_slider'),
 		value = state_manager.get_item('face_detector_score'),
-		step = calculate_float_step(facefusion.choices.face_detector_score_range),
-		minimum = facefusion.choices.face_detector_score_range[0],
-		maximum = facefusion.choices.face_detector_score_range[-1]
+		step = calculate_float_step(deeptrace.choices.face_detector_score_range),
+		minimum = deeptrace.choices.face_detector_score_range[0],
+		maximum = deeptrace.choices.face_detector_score_range[-1]
 	)
 	register_ui_component('face_detector_model_dropdown', FACE_DETECTOR_MODEL_DROPDOWN)
 	register_ui_component('face_detector_size_dropdown', FACE_DETECTOR_SIZE_DROPDOWN)
@@ -77,7 +77,7 @@ def update_face_detector_model(face_detector_model : FaceDetectorModel) -> Tuple
 	state_manager.set_item('face_detector_model', face_detector_model)
 
 	if face_detector.pre_check():
-		face_detector_size_choices = facefusion.choices.face_detector_set.get(state_manager.get_item('face_detector_model'))
+		face_detector_size_choices = deeptrace.choices.face_detector_set.get(state_manager.get_item('face_detector_model'))
 		state_manager.set_item('face_detector_size', get_last(face_detector_size_choices))
 		return gradio.Dropdown(value = state_manager.get_item('face_detector_model')), gradio.Dropdown(value = state_manager.get_item('face_detector_size'), choices = face_detector_size_choices)
 	return gradio.Dropdown(), gradio.Dropdown()
@@ -88,12 +88,12 @@ def update_face_detector_size(face_detector_size : str) -> None:
 
 
 def update_face_detector_margin(face_detector_margin : int) -> None:
-	face_detector_margin = sanitize_int_range(face_detector_margin, facefusion.choices.face_detector_margin_range)
+	face_detector_margin = sanitize_int_range(face_detector_margin, deeptrace.choices.face_detector_margin_range)
 	state_manager.set_item('face_detector_margin', (face_detector_margin, face_detector_margin, face_detector_margin, face_detector_margin))
 
 
 def update_face_detector_angles(face_detector_angles : Sequence[Angle]) -> gradio.CheckboxGroup:
-	face_detector_angles = face_detector_angles or facefusion.choices.face_detector_angles
+	face_detector_angles = face_detector_angles or deeptrace.choices.face_detector_angles
 
 	state_manager.set_item('face_detector_angles', face_detector_angles)
 	return gradio.CheckboxGroup(value = state_manager.get_item('face_detector_angles'))

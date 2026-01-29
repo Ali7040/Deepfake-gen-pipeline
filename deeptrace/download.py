@@ -166,7 +166,7 @@ def resolve_download_url(base_name : str, file_name : str) -> Optional[str]:
 
 
 def resolve_download_url_by_provider(download_provider : DownloadProvider, base_name : str, file_name : str) -> Optional[str]:
-	download_provider_value = facefusion.choices.download_provider_set.get(download_provider)
+	download_provider_value = deeptrace.choices.download_provider_set.get(download_provider)
 
 	for download_provider_url in download_provider_value.get('urls'):
 		if ping_static_url(download_provider_url):

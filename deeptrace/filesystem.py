@@ -58,7 +58,7 @@ def is_file(file_path : str) -> bool:
 
 
 def is_audio(audio_path : str) -> bool:
-	return is_file(audio_path) and get_file_format(audio_path) in facefusion.choices.audio_formats
+	return is_file(audio_path) and get_file_format(audio_path) in deeptrace.choices.audio_formats
 
 
 def has_audio(audio_paths : List[str]) -> bool:
@@ -74,7 +74,7 @@ def are_audios(audio_paths : List[str]) -> bool:
 
 
 def is_image(image_path : str) -> bool:
-	return is_file(image_path) and get_file_format(image_path) in facefusion.choices.image_formats
+	return is_file(image_path) and get_file_format(image_path) in deeptrace.choices.image_formats
 
 
 def has_image(image_paths : List[str]) -> bool:
@@ -90,7 +90,7 @@ def are_images(image_paths : List[str]) -> bool:
 
 
 def is_video(video_path : str) -> bool:
-	return is_file(video_path) and get_file_format(video_path) in facefusion.choices.video_formats
+	return is_file(video_path) and get_file_format(video_path) in deeptrace.choices.video_formats
 
 
 def has_video(video_paths : List[str]) -> bool:

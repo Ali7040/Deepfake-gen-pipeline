@@ -16,7 +16,7 @@ def render() -> None:
 
 	DOWNLOAD_PROVIDERS_CHECKBOX_GROUP = gradio.CheckboxGroup(
 		label = translator.get('uis.download_providers_checkbox_group'),
-		choices = facefusion.choices.download_providers,
+		choices = deeptrace.choices.download_providers,
 		value = state_manager.get_item('download_providers')
 	)
 
@@ -43,6 +43,6 @@ def update_download_providers(download_providers : List[DownloadProvider]) -> gr
 		if hasattr(module, 'create_static_model_set'):
 			module.create_static_model_set.cache_clear()
 
-	download_providers = download_providers or facefusion.choices.download_providers
+	download_providers = download_providers or deeptrace.choices.download_providers
 	state_manager.set_item('download_providers', download_providers)
 	return gradio.CheckboxGroup(value = state_manager.get_item('download_providers'))

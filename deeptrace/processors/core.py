@@ -21,7 +21,7 @@ PROCESSORS_METHODS =\
 
 def load_processor_module(processor : str) -> Any:
 	try:
-		processor_module = importlib.import_module('facefusion.processors.modules.' + processor + '.core')
+		processor_module = importlib.import_module('deeptrace.processors.modules.' + processor + '.core')
 		for method_name in PROCESSORS_METHODS:
 			if not hasattr(processor_module, method_name):
 				raise NotImplementedError

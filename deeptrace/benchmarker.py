@@ -43,7 +43,7 @@ def run() -> Iterator[List[BenchmarkCycleSet]]:
 	state_manager.init_item('video_memory_strategy', 'tolerant')
 
 	benchmarks = []
-	target_paths = [ facefusion.choices.benchmark_set.get(benchmark_resolution) for benchmark_resolution in benchmark_resolutions if benchmark_resolution in facefusion.choices.benchmark_set ]
+	target_paths = [ deeptrace.choices.benchmark_set.get(benchmark_resolution) for benchmark_resolution in benchmark_resolutions if benchmark_resolution in deeptrace.choices.benchmark_set ]
 
 	for target_path in target_paths:
 		state_manager.init_item('target_path', target_path)

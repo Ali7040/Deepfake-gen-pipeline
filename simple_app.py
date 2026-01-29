@@ -18,11 +18,19 @@ import logging
 # Import deeptrace modules
 from deeptrace import state_manager, face_detector, face_analyser
 from deeptrace.processors.modules.face_swapper import core as face_swapper
+import deeptrace.processors.modules.face_enhancer.core as face_enhancer
 from deeptrace.vision import read_static_image, write_image
 from deeptrace.filesystem import is_image, is_video
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging - both console and file
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('deeptrace_app.log', mode='w')
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Flask app
@@ -45,22 +53,66 @@ def allowed_file(filename):
 def initialize_deeptrace():
     """Initialize DeepTrace with optimized settings"""
     try:
-        # Set optimized state parameters
-        state_manager.init_item('execution_providers', ['CUDAExecutionProvider', 'CPUExecutionProvider'])
+        # Download settings - MUST be set first
+        state_manager.init_item('download_providers', ['github', 'huggingface'])
+        state_manager.init_item('download_scope', 'full')
+        state_manager.init_item('log_level', 'info')
+        
+        # Execution settings
+        state_manager.init_item('execution_providers', ['CPUExecutionProvider'])
         state_manager.init_item('execution_device_ids', [0])
+        state_manager.init_item('execution_thread_count', 4)
+        
+        # Face detector settings
         state_manager.init_item('face_detector_model', 'yolo_face')  # Faster detector
         state_manager.init_item('face_detector_size', '640x640')
         state_manager.init_item('face_detector_score', 0.5)
+        state_manager.init_item('face_detector_angles', [0])
+        state_manager.init_item('face_detector_margin', [0, 0, 0, 0])
+        
+        # Face swapper settings
         state_manager.init_item('face_swapper_model', 'inswapper_128_fp16')  # Use FP16 for speed
+        state_manager.init_item('face_swapper_pixel_boost', '128x128')  # Match model size
+        state_manager.init_item('face_swapper_weight', 0.5)
+        
+        # Face enhancer settings
+        state_manager.init_item('face_enhancer_model', 'gfpgan_1.4')
+        state_manager.init_item('face_enhancer_blend', 100)
+        state_manager.init_item('face_enhancer_weight', 1.0)
+        
+        # Face recognizer and landmarker
         state_manager.init_item('face_recognizer_model', 'arcface_inswapper')
         state_manager.init_item('face_landmarker_model', '2dfan4')
+        state_manager.init_item('face_landmarker_score', 0.5)
+        
+        # Face mask settings
+        state_manager.init_item('face_mask_types', ['box'])
+        state_manager.init_item('face_mask_blur', 0.3)
+        state_manager.init_item('face_mask_padding', [0, 0, 0, 0])
+        state_manager.init_item('face_mask_areas', [])
+        state_manager.init_item('face_mask_regions', [])
+        state_manager.init_item('face_occluder_model', 'xseg_1')
+        state_manager.init_item('face_parser_model', 'bisenet_resnet_34')
+        
+        # Face selector settings
+        state_manager.init_item('face_selector_mode', 'many')
+        state_manager.init_item('face_selector_order', 'large-small')
+        state_manager.init_item('reference_face_distance', 0.6)
+        
+        # Output settings
         state_manager.init_item('output_path', app.config['OUTPUT_FOLDER'])
         state_manager.init_item('temp_path', '.temp')
+        state_manager.init_item('output_image_quality', 80)
+        
+        # Video memory strategy
+        state_manager.init_item('video_memory_strategy', 'moderate')
         
         logger.info("DeepTrace initialized successfully")
         return True
     except Exception as e:
         logger.error(f"Failed to initialize DeepTrace: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 # HTML template for simple UI
@@ -189,10 +241,10 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="container">
-        <h1>⚡ DeepTrace</h1>
+        <h1>⚡ DeepTrace v1.1</h1>
         <p class="subtitle">Optimized for Speed & Performance</p>
         
-        <form id="uploadForm" enctype="multipart/form-data">
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
             <div class="upload-section">
                 <label for="source">Source Face (Person to copy):</label>
                 <input type="file" id="source" name="source" accept="image/*" required>
@@ -211,6 +263,7 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        console.log("DeepTrace App Loaded v1.1");
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -239,10 +292,11 @@ HTML_TEMPLATE = """
                 });
                 
                 const data = await response.json();
+                console.log("Response data:", data);
                 
                 if (data.success) {
                     showStatus(`Success! Processed in ${data.processing_time.toFixed(2)}s`, 'success');
-                    displayResult(data.output_path);
+                    displayResult(data.output_filename || data.output_path);
                 } else {
                     showStatus('Error: ' + data.error, 'error');
                 }
@@ -264,20 +318,21 @@ HTML_TEMPLATE = """
         function displayResult(outputPath) {
             const result = document.getElementById('result');
             const isVideo = outputPath.endsWith('.mp4') || outputPath.endsWith('.avi');
+            const filename = outputPath;
             
             if (isVideo) {
                 result.innerHTML = `
                     <video controls style="max-width: 100%; border-radius: 8px;">
-                        <source src="/output/${outputPath.split('/').pop()}" type="video/mp4">
+                        <source src="/output/${filename}" type="video/mp4">
                     </video>
                     <br>
-                    <a href="/output/${outputPath.split('/').pop()}" class="download-btn" download>Download Video</a>
+                    <a href="/output/${filename}" class="download-btn" download>Download Video</a>
                 `;
             } else {
                 result.innerHTML = `
-                    <img src="/output/${outputPath.split('/').pop()}" alt="Result">
+                    <img src="/output/${filename}" alt="Result">
                     <br>
-                    <a href="/output/${outputPath.split('/').pop()}" class="download-btn" download>Download Image</a>
+                    <a href="/output/${filename}" class="download-btn" download>Download Image</a>
                 `;
             }
         }
@@ -332,6 +387,7 @@ def swap_faces():
             return jsonify({
                 'success': True,
                 'output_path': output_path,
+                'output_filename': output_filename,
                 'processing_time': processing_time
             })
         else:
@@ -354,6 +410,7 @@ def process_face_swap(source_path, target_path, output_path):
     Perform the actual face swap using DeepTrace
     Optimized for speed and accuracy
     """
+    import traceback
     try:
         # Read images
         source_frame = read_static_image(source_path)
@@ -363,6 +420,9 @@ def process_face_swap(source_path, target_path, output_path):
             logger.error("Failed to read images")
             return False
         
+        # Set source paths for the face swapper
+        state_manager.set_item('source_paths', [source_path])
+        
         # Get source face
         source_faces = face_analyser.get_many_faces([source_frame])
         if not source_faces:
@@ -370,6 +430,7 @@ def process_face_swap(source_path, target_path, output_path):
             return False
         
         source_face = source_faces[0]
+        logger.info(f"Source face detected with score: {source_face.score if hasattr(source_face, 'score') else 'N/A'}")
         
         # Get target faces
         target_faces = face_analyser.get_many_faces([target_frame])
@@ -377,19 +438,27 @@ def process_face_swap(source_path, target_path, output_path):
             logger.error("No face found in target image")
             return False
         
-        # Process frame with face swap
-        result_frame = face_swapper.process_frame(
-            source_face=source_face,
-            temp_vision_frame=target_frame
-        )
+        logger.info(f"Target face detected, count: {len(target_faces)}")
+        
+        # Use the swap_face function directly instead of process_frame
+        # as it's simpler and more direct
+        result_frame = target_frame.copy()
+        
+        for target_face in target_faces:
+            # First swap the face
+            result_frame = face_swapper.swap_face(source_face, target_face, result_frame)
+            # Then enhance the swapped face
+            result_frame = face_enhancer.enhance_face(target_face, result_frame)
         
         # Write output
         success = write_image(output_path, result_frame)
+        logger.info(f"Output written: {success}")
         
         return success
         
     except Exception as e:
         logger.error(f"Error in process_face_swap: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
 if __name__ == '__main__':

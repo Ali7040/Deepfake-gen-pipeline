@@ -18,7 +18,7 @@ def render() -> None:
 	global JOB_LIST_REFRESH_BUTTON
 
 	if job_manager.init_jobs(state_manager.get_item('jobs_path')):
-		job_status = get_first(facefusion.choices.job_statuses)
+		job_status = get_first(deeptrace.choices.job_statuses)
 		job_headers, job_contents = job_list.compose_job_list(job_status)
 
 		JOB_LIST_JOBS_DATAFRAME = gradio.Dataframe(

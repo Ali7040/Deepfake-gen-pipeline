@@ -18,15 +18,15 @@ def render() -> None:
 
 	FACE_LANDMARKER_MODEL_DROPDOWN = gradio.Dropdown(
 		label = translator.get('uis.face_landmarker_model_dropdown'),
-		choices = facefusion.choices.face_landmarker_models,
+		choices = deeptrace.choices.face_landmarker_models,
 		value = state_manager.get_item('face_landmarker_model')
 	)
 	FACE_LANDMARKER_SCORE_SLIDER = gradio.Slider(
 		label = translator.get('uis.face_landmarker_score_slider'),
 		value = state_manager.get_item('face_landmarker_score'),
-		step = calculate_float_step(facefusion.choices.face_landmarker_score_range),
-		minimum = facefusion.choices.face_landmarker_score_range[0],
-		maximum = facefusion.choices.face_landmarker_score_range[-1]
+		step = calculate_float_step(deeptrace.choices.face_landmarker_score_range),
+		minimum = deeptrace.choices.face_landmarker_score_range[0],
+		maximum = deeptrace.choices.face_landmarker_score_range[-1]
 	)
 	register_ui_component('face_landmarker_model_dropdown', FACE_LANDMARKER_MODEL_DROPDOWN)
 	register_ui_component('face_landmarker_score_slider', FACE_LANDMARKER_SCORE_SLIDER)

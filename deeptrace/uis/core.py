@@ -26,7 +26,7 @@ UI_LAYOUT_METHODS =\
 
 def load_ui_layout_module(ui_layout : str) -> Any:
 	try:
-		ui_layout_module = importlib.import_module('facefusion.uis.layouts.' + ui_layout)
+		ui_layout_module = importlib.import_module('deeptrace.uis.layouts.' + ui_layout)
 		for method_name in UI_LAYOUT_METHODS:
 			if not hasattr(ui_layout_module, method_name):
 				raise NotImplementedError

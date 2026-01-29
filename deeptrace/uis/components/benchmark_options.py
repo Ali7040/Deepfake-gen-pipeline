@@ -19,20 +19,20 @@ def render() -> None:
 
 	BENCHMARK_MODE_DROPDOWN = gradio.Dropdown(
 		label = translator.get('uis.benchmark_mode_dropdown'),
-		choices = facefusion.choices.benchmark_modes,
+		choices = deeptrace.choices.benchmark_modes,
 		value = state_manager.get_item('benchmark_mode')
 	)
 	BENCHMARK_RESOLUTIONS_CHECKBOX_GROUP = gradio.CheckboxGroup(
 		label = translator.get('uis.benchmark_resolutions_checkbox_group'),
-		choices = facefusion.choices.benchmark_resolutions,
+		choices = deeptrace.choices.benchmark_resolutions,
 		value = state_manager.get_item('benchmark_resolutions')
 	)
 	BENCHMARK_CYCLE_COUNT_SLIDER = gradio.Slider(
 		label = translator.get('uis.benchmark_cycle_count_slider'),
 		value = state_manager.get_item('benchmark_cycle_count'),
-		step = calculate_int_step(facefusion.choices.benchmark_cycle_count_range),
-		minimum = facefusion.choices.benchmark_cycle_count_range[0],
-		maximum = facefusion.choices.benchmark_cycle_count_range[-1]
+		step = calculate_int_step(deeptrace.choices.benchmark_cycle_count_range),
+		minimum = deeptrace.choices.benchmark_cycle_count_range[0],
+		maximum = deeptrace.choices.benchmark_cycle_count_range[-1]
 	)
 
 

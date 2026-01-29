@@ -121,7 +121,7 @@ download_provider_set : DownloadProviderSet =\
 		[
 			'https://github.com'
 		],
-		'path': '/deeptrace/facefusion-assets/releases/download/{base_name}/{file_name}'
+		'path': '/deeptrace/deeptrace-assets/releases/download/{base_name}/{file_name}'
 	},
 	'huggingface':
 	{

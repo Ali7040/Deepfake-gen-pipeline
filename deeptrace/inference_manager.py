@@ -3,7 +3,7 @@ import random
 from time import sleep, time
 from typing import List
 
-from onnxruntime import InferenceSession, SessionOptions, GraphOptimizationLevel
+from onnxruntime import InferenceSession, SessionOptions, GraphOptimizationLevel, ExecutionMode
 
 from deeptrace import logger, process_manager, state_manager, translator
 from deeptrace.app_context import detect_app_context
@@ -81,7 +81,10 @@ def create_inference_session(model_path : str, execution_device_id : int, execut
 		logger.debug(translator.get('loading_model_succeeded').format(model_name = model_file_name, seconds = calculate_end_time(start_time)), __name__)
 		return inference_session
 
-	except Exception:
+	except Exception as exception:
+		logger.error(f"Full exception: {exception}", __name__)
+		import traceback
+		logger.error(traceback.format_exc(), __name__)
 		logger.error(translator.get('loading_model_failed').format(model_name = model_file_name), __name__)
 		fatal_exit(1)
 
@@ -100,29 +103,10 @@ def resolve_execution_providers(module_name : str) -> List[ExecutionProvider]:
 
 
 def create_optimized_session_options() -> SessionOptions:
-	"""Create optimized ONNX session options for faster inference"""
+	"""Create session options - simplified for stability"""
 	sess_options = SessionOptions()
-	
-	# Enable all optimizations
-	sess_options.graph_optimization_level = GraphOptimizationLevel.ORT_ENABLE_ALL
-	
-	# Enable parallel execution for faster processing
-	# Use more threads for better performance
-	sess_options.intra_op_num_threads = 6  # Increased from 4
-	sess_options.inter_op_num_threads = 6  # Increased from 4
-	
-	# Enable memory pattern optimization
-	sess_options.enable_mem_pattern = True
-	sess_options.enable_cpu_mem_arena = True
-	
-	# Additional optimizations
-	sess_options.execution_mode = SessionOptions.ExecutionMode.ORT_PARALLEL
-	
-	# Enable profiling (can be disabled in production)
+	# Use basic execution mode
+	sess_options.execution_mode = ExecutionMode.ORT_SEQUENTIAL
+	# Disable profiling
 	sess_options.enable_profiling = False
-	
-	# Graph optimization options
-	sess_options.add_session_config_entry('session.intra_op.allow_spinning', '1')
-	sess_options.add_session_config_entry('session.inter_op.allow_spinning', '1')
-	
 	return sess_options
