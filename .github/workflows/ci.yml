@@ -13,6 +13,7 @@ jobs:
     with:
      python-version: '3.12'
   - run: pip install flake8
+  - run: pip install flake8-import-order
   - run: pip install mypy
   - run: flake8 deeptrace.py install.py --ignore=E501,W503
   - run: flake8 deeptrace tests --ignore=E501,W503,F401,F821,I100,I101,I201,E722,E226,E241,E302,E303,E305,F824
@@ -43,7 +44,7 @@ jobs:
   - name: Checkout
     uses: actions/checkout@v4
   - name: Set up FFmpeg
-    uses: FedericoCarboni/setup-ffmpeg@v3
+    uses: AnimMouse/setup-ffmpeg@v1
   - name: Set up Python 3.12
     uses: actions/setup-python@v5
     with:
