@@ -217,7 +217,7 @@ def detect_with_retinaface(vision_frame : VisionFrame, face_detector_size : str)
 	temp_vision_frame = restrict_frame(vision_frame, (face_detector_width, face_detector_height))
 	ratio_height = vision_frame.shape[0] / temp_vision_frame.shape[0]
 	ratio_width = vision_frame.shape[1] / temp_vision_frame.shape[1]
-	detect_vision_frame = prepare_detect_frame(temp_vision_frame, face_detector_size)
+	detect_vision_frame = prepare_detect_frame(temp_vision_frame, face_detector_size, convert_rgb = True)
 	detect_vision_frame = normalize_detect_frame(detect_vision_frame, [ -1, 1 ])
 	detection = forward_with_retinaface(detect_vision_frame)
 
@@ -262,7 +262,7 @@ def detect_with_scrfd(vision_frame : VisionFrame, face_detector_size : str) -> T
 	temp_vision_frame = restrict_frame(vision_frame, (face_detector_width, face_detector_height))
 	ratio_height = vision_frame.shape[0] / temp_vision_frame.shape[0]
 	ratio_width = vision_frame.shape[1] / temp_vision_frame.shape[1]
-	detect_vision_frame = prepare_detect_frame(temp_vision_frame, face_detector_size)
+	detect_vision_frame = prepare_detect_frame(temp_vision_frame, face_detector_size, convert_rgb = True)
 	detect_vision_frame = normalize_detect_frame(detect_vision_frame, [ -1, 1 ])
 	detection = forward_with_scrfd(detect_vision_frame)
 
@@ -304,7 +304,7 @@ def detect_with_yolo_face(vision_frame : VisionFrame, face_detector_size : str) 
 	temp_vision_frame = restrict_frame(vision_frame, (face_detector_width, face_detector_height))
 	ratio_height = vision_frame.shape[0] / temp_vision_frame.shape[0]
 	ratio_width = vision_frame.shape[1] / temp_vision_frame.shape[1]
-	detect_vision_frame = prepare_detect_frame(temp_vision_frame, face_detector_size)
+	detect_vision_frame = prepare_detect_frame(temp_vision_frame, face_detector_size, convert_rgb = True)
 	detect_vision_frame = normalize_detect_frame(detect_vision_frame, [ 0, 1 ])
 	detection = forward_with_yolo_face(detect_vision_frame)
 	detection = numpy.squeeze(detection).T
@@ -442,10 +442,12 @@ def forward_with_yunet(detect_vision_frame : VisionFrame) -> Detection:
 	return detection
 
 
-def prepare_detect_frame(temp_vision_frame : VisionFrame, face_detector_size : str) -> VisionFrame:
+def prepare_detect_frame(temp_vision_frame : VisionFrame, face_detector_size : str, convert_rgb : bool = False) -> VisionFrame:
 	face_detector_width, face_detector_height = unpack_resolution(face_detector_size)
 	detect_vision_frame = numpy.zeros((face_detector_height, face_detector_width, 3))
 	detect_vision_frame[:temp_vision_frame.shape[0], :temp_vision_frame.shape[1], :] = temp_vision_frame
+	if convert_rgb:
+		detect_vision_frame = detect_vision_frame[:, :, ::-1]
 	detect_vision_frame = numpy.expand_dims(detect_vision_frame.transpose(2, 0, 1), axis = 0).astype(numpy.float32)
 	return detect_vision_frame
 

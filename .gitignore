@@ -5,3 +5,11 @@ __pycache__
 .idea
 .jobs
 .vscode
+outputs/
+source/
+target/
+uploads/
+uploads/source_*
+uploads/target_*
+deeptrace_app.log
+test*.png

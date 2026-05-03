@@ -1,27 +1,8 @@
-2026-01-30 10:05:15,733 - __main__ - INFO - DeepTrace initialized successfully
-2026-01-30 10:05:15,734 - __main__ - INFO - Starting DeepTrace application...
-2026-01-30 10:05:15,840 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+2026-05-03 14:38:08,722 - __main__ - INFO - DeepTrace state initialised
+2026-05-03 14:38:08,723 - __main__ - INFO - Starting DeepTrace v2 on http://0.0.0.0:5000
+2026-05-03 14:38:08,723 - __main__ - INFO - Model warm-up complete
+2026-05-03 14:38:08,755 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5000
- * Running on http://192.168.161.204:5000
-2026-01-30 10:05:15,840 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
-2026-01-30 10:05:20,576 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 10:05:20] "GET / HTTP/1.1" 200 -
-2026-01-30 10:05:21,342 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 10:05:21] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
-2026-01-30 10:05:33,906 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model yoloface_8n succeeded in 0.18 seconds
-2026-01-30 10:05:34,071 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fan_68_5 succeeded in 0.01 seconds
-2026-01-30 10:05:34,799 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model 2dfan4 succeeded in 0.73 seconds
-2026-01-30 10:05:38,607 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model arcface_w600k_r50 succeeded in 1.84 seconds
-2026-01-30 10:05:39,739 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fairface succeeded in 0.79 seconds
-2026-01-30 10:05:40,041 - __main__ - INFO - Source face detected with score: N/A
-2026-01-30 10:05:44,381 - __main__ - INFO - Target face detected, count: 1
-2026-01-30 10:05:50,219 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model inswapper_128_fp16 succeeded in 5.7 seconds
-2026-01-30 10:05:54,582 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model gfpgan_1.4 succeeded in 1.86 seconds
-2026-01-30 10:05:57,750 - __main__ - INFO - Output written: True
-2026-01-30 10:05:57,767 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 10:05:57] "POST /swap HTTP/1.1" 200 -
-2026-01-30 10:05:57,984 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 10:05:57] "GET /output/output_1769749532.png HTTP/1.1" 200 -
-2026-01-30 11:20:50,636 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 11:20:50] "GET / HTTP/1.1" 200 -
-2026-01-30 11:21:24,674 - __main__ - INFO - Source face detected with score: N/A
-2026-01-30 11:21:28,855 - __main__ - INFO - Target face detected, count: 1
-2026-01-30 11:21:37,983 - __main__ - INFO - Output written: True
-2026-01-30 11:21:37,993 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 11:21:37] "POST /swap HTTP/1.1" 200 -
-2026-01-30 11:21:38,051 - werkzeug - INFO - 192.168.161.204 - - [30/Jan/2026 11:21:38] "GET /output/output_1769754081.png HTTP/1.1" 200 -
+ * Running on http://192.168.18.78:5000
+2026-05-03 14:38:08,756 - werkzeug - INFO - [33mPress CTRL+C to quit[0m

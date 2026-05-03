@@ -103,10 +103,12 @@ def resolve_execution_providers(module_name : str) -> List[ExecutionProvider]:
 
 
 def create_optimized_session_options() -> SessionOptions:
-	"""Create session options - simplified for stability"""
+	import os
 	sess_options = SessionOptions()
-	# Use basic execution mode
 	sess_options.execution_mode = ExecutionMode.ORT_SEQUENTIAL
-	# Disable profiling
 	sess_options.enable_profiling = False
+	sess_options.graph_optimization_level = GraphOptimizationLevel.ORT_ENABLE_ALL
+	thread_count = int(os.environ.get('OMP_NUM_THREADS', 4))
+	sess_options.intra_op_num_threads = thread_count
+	sess_options.inter_op_num_threads = 1
 	return sess_options

@@ -45,9 +45,10 @@ def write_image(image_path : str, vision_frame : VisionFrame) -> bool:
 	if image_path:
 		if is_windows():
 			image_file_extension = get_file_extension(image_path)
-			_, vision_frame = cv2.imencode(image_file_extension, vision_frame)
-			vision_frame.tofile(image_path)
-			return is_image(image_path)
+			success, encoded_frame = cv2.imencode(image_file_extension, vision_frame)
+			if success and encoded_frame is not None:
+				encoded_frame.tofile(image_path)
+				return is_image(image_path)
 		return cv2.imwrite(image_path, vision_frame)
 	return False
 
