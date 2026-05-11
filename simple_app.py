@@ -14,6 +14,7 @@ import logging
 import traceback
 import subprocess
 import threading
+import uuid
 from io import BytesIO
 from pathlib import Path
 
@@ -59,6 +60,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'mp4', 'avi', 'mov', 'mkv'}
 
 _INIT_OK = False       # set after initialize_deeptrace()
 _WARMUP_DONE = False   # set after model warm-up
+_job_progress: dict = {}  # job_id -> {total, done, status}
 
 
 def allowed_file(filename: str) -> bool:
@@ -87,23 +89,23 @@ def initialize_deeptrace() -> bool:
 
         # Face swapper
         state_manager.init_item('face_swapper_model', 'inswapper_128_fp16')
-        state_manager.init_item('face_swapper_pixel_boost', '128x128')
-        state_manager.init_item('face_swapper_weight', 0.5)
+        state_manager.init_item('face_swapper_pixel_boost', '256x256')  # was 128x128 → sharper swap region
+        state_manager.init_item('face_swapper_weight', 1.0)             # was 0.5 → full swap, no ghosting
 
         # Face enhancer
         state_manager.init_item('face_enhancer_model', 'gfpgan_1.4')
-        state_manager.init_item('face_enhancer_blend', 80)
+        state_manager.init_item('face_enhancer_blend', 100)  # was 80 → full GFPGAN output, no original leak
         state_manager.init_item('face_enhancer_weight', 1.0)
 
         # Recogniser / landmarker
         state_manager.init_item('face_recognizer_model', 'arcface_inswapper')
         state_manager.init_item('face_landmarker_model', '2dfan4')
-        state_manager.init_item('face_landmarker_score', 0.3)   # lowered from 0.5
+        state_manager.init_item('face_landmarker_score', 0.3)
 
-        # Masks
+        # Masks — softer blur + padding captures full face boundary cleanly
         state_manager.init_item('face_mask_types', ['box'])
-        state_manager.init_item('face_mask_blur', 0.3)
-        state_manager.init_item('face_mask_padding', [0, 0, 0, 0])
+        state_manager.init_item('face_mask_blur', 0.5)          # was 0.3 → smoother edge feathering
+        state_manager.init_item('face_mask_padding', [0, 10, 0, 10])  # was [0,0,0,0] → expand mask top/sides
         state_manager.init_item('face_mask_areas', [])
         state_manager.init_item('face_mask_regions', [])
         state_manager.init_item('face_occluder_model', 'xseg_1')
@@ -175,32 +177,105 @@ def _ffmpeg_available() -> bool:
         return False
 
 
-def _shift_audio_pitch(src_video: str, dst_video: str, semitones: float) -> bool:
-    """Pitch-shift the audio in `src_video` by `semitones` and write to `dst_video`."""
-    if not _ffmpeg_available():
-        return False
-    rate = 2 ** (semitones / 12)
-    # atempo can only go 0.5–2.0; chain two filters for larger shifts
-    if 0.5 <= rate <= 2.0:
-        atempo = f'atempo={rate:.4f}'
-    elif rate < 0.5:
-        atempo = f'atempo={rate**0.5:.4f},atempo={rate**0.5:.4f}'
-    else:
-        atempo = f'atempo={rate**0.5:.4f},atempo={rate**0.5:.4f}'
-
-    cmd = [
-        'ffmpeg', '-y',
-        '-i', src_video,
-        '-filter:a', f'asetrate=44100*{rate:.4f},{atempo},aresample=44100',
-        '-c:v', 'copy',
-        dst_video
-    ]
+def _has_audio_stream(path: str) -> bool:
+    """Return True if the file contains at least one audio stream."""
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=120)
-        return result.returncode == 0
-    except Exception as e:
-        logger.error(f'Audio pitch shift failed: {e}')
+        r = subprocess.run(
+            ['ffprobe', '-v', 'error', '-select_streams', 'a:0',
+             '-show_entries', 'stream=codec_type',
+             '-of', 'default=noprint_wrappers=1:nokey=1', path],
+            capture_output=True, timeout=10
+        )
+        return r.returncode == 0 and b'audio' in r.stdout
+    except Exception:
         return False
+
+
+def _atempo_chain(rate: float) -> str:
+    """Build an atempo filter chain that stays within ffmpeg's 0.5-2.0 limit."""
+    if 0.5 <= rate <= 2.0:
+        return f'atempo={rate:.6f}'
+    # Split into two equal stages
+    stage = rate ** 0.5
+    return f'atempo={stage:.6f},atempo={stage:.6f}'
+
+
+def _mux_video_audio(raw_video: str, audio_src: str, output: str,
+                     pitch_semitones: float = 0.0) -> bool:
+    """
+    Re-encode raw_video to H.264, mux audio from audio_src.
+    Returns True on success.
+    """
+    has_audio = _has_audio_stream(audio_src)
+    logger.info(f'Audio mux: {"found" if has_audio else "no audio"} in target')
+
+    cmd = ['ffmpeg', '-y', '-i', raw_video]
+    if has_audio:
+        cmd += ['-i', audio_src]
+
+    # Video: H.264, fast, web-optimised
+    cmd += ['-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+            '-pix_fmt', 'yuv420p', '-movflags', '+faststart']
+
+    if has_audio:
+        cmd += ['-map', '0:v:0', '-map', '1:a:0']
+        cmd += ['-c:a', 'aac', '-b:a', '128k', '-ar', '44100']
+        if pitch_semitones != 0.0:
+            rate = 2 ** (pitch_semitones / 12)
+            af = f'asetrate=44100*{rate:.6f},{_atempo_chain(rate)},aresample=44100'
+            cmd += ['-af', af]
+    else:
+        cmd += ['-map', '0:v:0']
+
+    cmd.append(output)
+
+    try:
+        r = subprocess.run(cmd, capture_output=True, timeout=600)
+        if r.returncode != 0:
+            logger.error(f'ffmpeg mux failed:\n{r.stderr.decode(errors="replace")}')
+        return r.returncode == 0
+    except Exception as e:
+        logger.error(f'ffmpeg mux exception: {e}')
+        return False
+
+
+# ── Face consistency tracking ─────────────────────────────────────────────────
+def _bbox_iou(a, b) -> float:
+    """Intersection-over-Union for two [x1,y1,x2,y2] bounding boxes."""
+    ix1, iy1 = max(a[0], b[0]), max(a[1], b[1])
+    ix2, iy2 = min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    if inter == 0:
+        return 0.0
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    return inter / (area_a + area_b - inter)
+
+
+def _match_faces(new_faces, prev_faces):
+    """
+    Reorder new_faces to best match prev_faces by IoU overlap.
+    Keeps face-slot assignment stable across frames.
+    """
+    if not prev_faces or not new_faces:
+        return new_faces
+    matched, used = [], set()
+    for pf in prev_faces:
+        best_iou, best_idx = 0.0, -1
+        for i, nf in enumerate(new_faces):
+            if i in used:
+                continue
+            iou = _bbox_iou(pf.bounding_box, nf.bounding_box)
+            if iou > best_iou:
+                best_iou, best_idx = iou, i
+        if best_idx >= 0 and best_iou > 0.15:
+            matched.append(new_faces[best_idx])
+            used.add(best_idx)
+    # Append any new faces not matched to previous slots
+    for i, nf in enumerate(new_faces):
+        if i not in used:
+            matched.append(nf)
+    return matched if matched else new_faces
 
 
 # ── Core face-swap logic ──────────────────────────────────────────────────────
@@ -245,12 +320,24 @@ def swap_frame(source_face, target_faces, frame: np.ndarray,
     return result
 
 
+def _resize_frame(frame: np.ndarray, max_side: int) -> np.ndarray:
+    h, w = frame.shape[:2]
+    if max_side <= 0 or max(w, h) <= max_side:
+        return frame
+    scale = max_side / max(w, h)
+    return cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
+
+
 def process_image_swap(source_path: str, target_path: str, output_path: str,
                        face_indices=None, enhance: bool = True,
-                       pitch_semitones: float = 0.0) -> dict:
+                       pitch_semitones: float = 0.0,
+                       job_id: str = '',
+                       detect_interval: int = 5,
+                       max_side: int = 720) -> dict:
     """
     Full pipeline for image→image or video→video face swap.
-    Returns a dict with keys: success, error, stats.
+    detect_interval: re-detect faces every N frames (1 = every frame).
+    max_side: downscale video so longest side ≤ this (0 = no downscale).
     """
     t0 = time.time()
 
@@ -276,6 +363,8 @@ def process_image_swap(source_path: str, target_path: str, output_path: str,
 
     # ── Image swap ───────────────────────────────────────────────────────────
     if is_image(target_path):
+        # Use highest pixel boost for images — quality over speed
+        state_manager.set_item('face_swapper_pixel_boost', '256x256')
         target_frame = read_frame(target_path)
         if target_frame is None:
             return {'success': False, 'error': 'Cannot read target image'}
@@ -302,80 +391,125 @@ def process_image_swap(source_path: str, target_path: str, output_path: str,
     # ── Video swap ───────────────────────────────────────────────────────────
     if is_video(target_path):
         cap = cv2.VideoCapture(target_path)
-        fps = cap.get(cv2.CAP_PROP_FPS) or 25
-        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps   = cap.get(cv2.CAP_PROP_FPS) or 25
+        src_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        src_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        tmp_video = output_path.replace('.mp4', '_noaudio.mp4')
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        writer = cv2.VideoWriter(tmp_video, fourcc, fps, (w, h))
+        # Compute output dimensions with optional downscale
+        if max_side > 0 and max(src_w, src_h) > max_side:
+            scale = max_side / max(src_w, src_h)
+            out_w, out_h = int(src_w * scale) & ~1, int(src_h * scale) & ~1  # even dims for H.264
+        else:
+            out_w, out_h = src_w & ~1, src_h & ~1
+        logger.info(f'Video: {src_w}×{src_h} → {out_w}×{out_h}, {total} frames @ {fps:.1f}fps, detect every {detect_interval} frames')
+        # Use 128x128 for video — speed matters more than pixel-perfect quality per frame
+        state_manager.set_item('face_swapper_pixel_boost', '128x128')
 
-        # Detect target faces from first frame to build index
+        base, _ = os.path.splitext(output_path)
+        tmp_video = base + '_raw.mp4'
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        writer = cv2.VideoWriter(tmp_video, fourcc, fps, (out_w, out_h))
+
+        # Validate first frame has a face
         ok_first, first_frame = cap.read()
         if not ok_first:
             cap.release()
             return {'success': False, 'error': 'Cannot read first video frame'}
         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-        target_faces_first = detect_faces_in_frame(first_frame)
+        first_resized = _resize_frame(first_frame, max_side)
+        target_faces_first = detect_faces_in_frame(first_resized)
         if not target_faces_first:
             cap.release()
             return {'success': False, 'error': 'No face detected in target video'}
 
-        frame_count = 0
+        if job_id:
+            _job_progress[job_id] = {'total': total or 1, 'done': 0, 'status': 'processing',
+                                      'eta_seconds': 0, 'fps_proc': 0.0}
+
+        cached_faces = target_faces_first
+        frame_count  = 0
+        skip_count   = 0
+        t_loop_start = time.time()
+
         while True:
             ok, frame = cap.read()
             if not ok:
                 break
-            # Detect per frame so tracking remains accurate
-            tfaces = detect_faces_in_frame(frame)
-            if tfaces:
-                frame = swap_frame(source_face, tfaces, frame,
-                                   face_indices=face_indices, enhance=enhance)
+            frame = _resize_frame(frame, max_side)
+
+            # Re-detect faces every N frames; reuse cache otherwise
+            if frame_count % detect_interval == 0:
+                try:
+                    detected = detect_faces_in_frame(frame)
+                    if detected:
+                        # Reorder to match previous face slots (avoids identity swap jitter)
+                        cached_faces = _match_faces(detected, cached_faces)
+                except Exception as det_err:
+                    logger.warning(f'Frame {frame_count}: detection failed – {det_err}')
+
+            if cached_faces:
+                try:
+                    frame = swap_frame(source_face, cached_faces, frame,
+                                       face_indices=face_indices, enhance=enhance)
+                except Exception as swap_err:
+                    # Write original frame on failure rather than aborting
+                    skip_count += 1
+                    logger.warning(f'Frame {frame_count}: swap failed (skipped) – {swap_err}')
+
             writer.write(frame)
             frame_count += 1
+
+            # Update progress + live ETA every 3 frames
+            if job_id and frame_count % 3 == 0:
+                elapsed  = time.time() - t_loop_start
+                fps_proc = frame_count / elapsed if elapsed > 0 else 0
+                remaining = (total - frame_count) / fps_proc if fps_proc > 0 and total > frame_count else 0
+                _job_progress[job_id] = {
+                    'total': total or frame_count,
+                    'done': frame_count,
+                    'status': 'processing',
+                    'eta_seconds': int(remaining),
+                    'fps_proc': round(fps_proc, 2),
+                    'skipped': skip_count,
+                }
+
         cap.release()
         writer.release()
 
-        # Audio handling
-        final_output = output_path
-        if pitch_semitones != 0.0 and _ffmpeg_available():
-            ok = _shift_audio_pitch(target_path, output_path, pitch_semitones)
-            if not ok:
-                # fallback: copy video without audio shift
-                subprocess.run(['ffmpeg', '-y', '-i', tmp_video,
-                                '-c', 'copy', output_path],
-                               capture_output=True, timeout=60)
+        if job_id:
+            _job_progress[job_id] = {'total': frame_count, 'done': frame_count,
+                                      'status': 'encoding', 'eta_seconds': 0, 'fps_proc': 0}
+
+        # Re-encode to H.264 + mux audio
+        if _ffmpeg_available():
+            ok_mux = _mux_video_audio(tmp_video, target_path, output_path, pitch_semitones)
+            if not ok_mux:
+                logger.warning('ffmpeg mux failed – falling back to video-only copy')
+                import shutil; shutil.move(tmp_video, output_path)
         else:
-            # Mux original audio back
-            if _ffmpeg_available():
-                cmd = ['ffmpeg', '-y',
-                       '-i', tmp_video, '-i', target_path,
-                       '-c:v', 'copy', '-map', '0:v:0', '-map', '1:a:0?',
-                       '-shortest', output_path]
-                r = subprocess.run(cmd, capture_output=True, timeout=300)
-                if r.returncode != 0:
-                    import shutil
-                    shutil.move(tmp_video, output_path)
-            else:
-                import shutil
-                shutil.move(tmp_video, output_path)
+            import shutil; shutil.move(tmp_video, output_path)
 
-        # Clean up temp file
         if Path(tmp_video).exists() and tmp_video != output_path:
-            try:
-                Path(tmp_video).unlink()
-            except Exception:
-                pass
+            try: Path(tmp_video).unlink()
+            except Exception: pass
 
+        if job_id:
+            _job_progress[job_id] = {'total': frame_count, 'done': frame_count,
+                                      'status': 'done', 'eta_seconds': 0, 'fps_proc': 0}
+
+        elapsed_total = time.time() - t0
         return {
             'success': True,
-            'processing_time': round(time.time() - t0, 2),
+            'processing_time': round(elapsed_total, 2),
             'frames_processed': frame_count,
+            'frames_skipped': skip_count,
+            'fps_achieved': round(frame_count / elapsed_total, 2) if elapsed_total > 0 else 0,
             'faces_swapped': len([i for i in range(len(target_faces_first))
                                   if face_indices is None or i in face_indices]),
-            'output_type': 'video'
+            'output_type': 'video',
+            'output_resolution': f'{out_w}x{out_h}',
         }
 
     return {'success': False, 'error': 'Unsupported target file type'}
@@ -483,14 +617,28 @@ def api_swap():
     except ValueError:
         pitch = 0.0
 
-    # Preserve original image format instead of forcing png
+    job_id = request.form.get('job_id', '')
+    if job_id:
+        _job_progress[job_id] = {'total': 0, 'done': 0, 'status': 'uploaded',
+                                  'eta_seconds': 0, 'fps_proc': 0.0}
+
+    try:
+        detect_interval = max(1, int(request.form.get('detect_interval', '5')))
+    except ValueError:
+        detect_interval = 5
+    try:
+        max_side = int(request.form.get('max_side', '720'))
+    except ValueError:
+        max_side = 720
+
+    # Preserve original image/video format
     tgt_ext = os.path.splitext(tgt_file.filename)[1].lower()
     valid_image_exts = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
     valid_video_exts = {'.mp4', '.avi', '.mov', '.mkv'}
     if tgt_ext in valid_image_exts:
         ext = tgt_ext
     elif tgt_ext in valid_video_exts:
-        ext = tgt_ext
+        ext = '.mp4'
     else:
         ext = '.jpg'
     out_name = f'output_{ts}{ext}'
@@ -499,7 +647,10 @@ def api_swap():
     result = process_image_swap(src_path, tgt_path, out_path,
                                 face_indices=face_indices,
                                 enhance=enhance,
-                                pitch_semitones=pitch)
+                                pitch_semitones=pitch,
+                                job_id=job_id,
+                                detect_interval=detect_interval,
+                                max_side=max_side)
     if result['success']:
         result['output_filename'] = out_name
         result['output_url'] = f'/output/{out_name}'
@@ -595,6 +746,25 @@ def webcam_process_frame():
 @app.route('/output/<path:filename>')
 def get_output(filename: str):
     return send_from_directory(app.config['OUTPUT_FOLDER'], filename)
+
+
+@app.route('/api/progress/<job_id>')
+def api_progress(job_id: str):
+    p = _job_progress.get(job_id)
+    if p is None:
+        return jsonify({'found': False})
+    return jsonify({'found': True, **p})
+
+
+@app.route('/api/active-jobs')
+def api_active_jobs():
+    """Return any jobs that are currently processing (for reconnect after refresh)."""
+    active = [
+        {'job_id': jid, **info}
+        for jid, info in _job_progress.items()
+        if info.get('status') in ('processing', 'encoding', 'uploaded')
+    ]
+    return jsonify({'jobs': active})
 
 
 # ── Backward-compatible /swap route ───────────────────────────────────────────
@@ -753,8 +923,9 @@ HTML_TEMPLATE = r"""
         <label>Face Enhancer</label>
         <label style="display:flex;align-items:center;gap:8px;margin-top:4px">
           <input type="checkbox" id="enhanceCheck" checked style="accent-color:var(--accent)">
-          <span style="font-size:.9rem">Enable GFPGAN enhancement</span>
+          <span style="font-size:.9rem">Enable GFPGAN (slower, higher quality)</span>
         </label>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:4px" id="enhanceHint">ON by default for images — auto-disabled for video</div>
       </div>
       <div>
         <label>Audio Pitch Shift (video only)</label>
@@ -764,9 +935,36 @@ HTML_TEMPLATE = r"""
           <span class="range-val" id="pitchVal">0</span>
           <span style="font-size:.8rem;color:var(--muted)">semitones</span>
         </div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:4px">
-          Negative = lower pitch, Positive = higher pitch (requires ffmpeg)
+      </div>
+    </div>
+
+    <div id="videoOpts" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #ffffff12">
+      <div style="font-size:.8rem;color:var(--accent);font-weight:700;margin-bottom:10px">⚡ Video Speed Settings</div>
+      <div class="grid2">
+        <div>
+          <label>Face Detect Interval</label>
+          <select id="detectInterval" style="width:100%;background:var(--surface2);color:var(--text);border:1px solid #ffffff20;border-radius:6px;padding:8px;font-size:.9rem">
+            <option value="1">Every frame (slowest, most accurate)</option>
+            <option value="3" selected>Every 3 frames (recommended)</option>
+            <option value="5">Every 5 frames (faster)</option>
+            <option value="10">Every 10 frames (fastest)</option>
+            <option value="30">Every 30 frames (ultra fast)</option>
+          </select>
+          <div style="font-size:.73rem;color:var(--muted);margin-top:4px">Skip face re-detection between frames</div>
         </div>
+        <div>
+          <label>Max Resolution</label>
+          <select id="maxSide" style="width:100%;background:var(--surface2);color:var(--text);border:1px solid #ffffff20;border-radius:6px;padding:8px;font-size:.9rem">
+            <option value="480">480p (fastest)</option>
+            <option value="720" selected>720p (recommended)</option>
+            <option value="1080">1080p</option>
+            <option value="0">Original (no resize)</option>
+          </select>
+          <div style="font-size:.73rem;color:var(--muted);margin-top:4px">Downscale before processing</div>
+        </div>
+      </div>
+      <div id="timeEstimate" style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:.85rem;color:var(--muted)">
+        Select a video to see estimated processing time
       </div>
     </div>
   </div>
@@ -891,6 +1089,19 @@ HTML_TEMPLATE = r"""
   </div>
 </div>
 
+<!-- Reconnect banner (hidden by default) -->
+<div id="reconnectBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:999;
+  background:linear-gradient(90deg,#1a1a2e,#16213e);border-top:1px solid var(--accent);
+  padding:14px 24px;display:none;align-items:center;gap:16px;flex-wrap:wrap">
+  <span style="font-size:1.1rem">⚠️</span>
+  <div style="flex:1">
+    <div style="font-weight:700;color:var(--accent)" id="reconnectTitle">Job running on server</div>
+    <div style="font-size:.82rem;color:var(--muted)" id="reconnectInfo">Your video is still being processed</div>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="reconnectJob()">▶ Reconnect</button>
+  <button class="btn btn-outline btn-sm" onclick="dismissReconnect()">✕ Dismiss</button>
+</div>
+
 <footer>DeepTrace v2 &nbsp;|&nbsp; FYP Research Project &nbsp;|&nbsp; Powered by InsightFace + ONNX Runtime</footer>
 
 <script>
@@ -905,10 +1116,90 @@ function switchTab(name) {
   if(name!=='webcam') stopWebcam();
 }
 
+// ── Job reconnect (survives page refresh) ─────────────────────────────────────
+let _activeJobId = null;
+let _reconnectPoll = null;
+
+async function checkForActiveJobs(){
+  try{
+    const res = await fetch('/api/active-jobs');
+    const data = await res.json();
+    if(data.jobs && data.jobs.length > 0){
+      const job = data.jobs[0];
+      const saved = localStorage.getItem('deeptrace_job_id');
+      // Prefer saved job if it matches; otherwise take first active
+      const matchedJob = data.jobs.find(j=>j.job_id===saved) || job;
+      showReconnectBanner(matchedJob);
+    } else {
+      localStorage.removeItem('deeptrace_job_id');
+    }
+  } catch(e){}
+}
+
+function showReconnectBanner(job){
+  _activeJobId = job.job_id;
+  const banner = document.getElementById('reconnectBanner');
+  banner.style.display = 'flex';
+  const pct = job.total > 0 ? Math.round(job.done/job.total*100) : 0;
+  const eta = job.eta_seconds > 0
+    ? (job.eta_seconds < 60 ? `${job.eta_seconds}s left` : `${Math.round(job.eta_seconds/60)}m left`)
+    : '';
+  document.getElementById('reconnectInfo').textContent =
+    `Frame ${job.done}/${job.total} (${pct}%) ${eta} — click Reconnect to resume progress view`;
+}
+
+function dismissReconnect(){
+  document.getElementById('reconnectBanner').style.display='none';
+  if(_reconnectPoll){ clearInterval(_reconnectPoll); _reconnectPoll=null; }
+  localStorage.removeItem('deeptrace_job_id');
+}
+
+function reconnectJob(){
+  if(!_activeJobId) return;
+  document.getElementById('reconnectBanner').style.display='none';
+
+  const btn = document.getElementById('swapBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Reconnected – processing…';
+  const prog = document.getElementById('swapProgress');
+  const bar  = document.getElementById('swapBar');
+  prog.style.display = 'block';
+  showAlert('swapAlert','Reconnected to running job. Waiting for server to finish…','info');
+
+  const jobId = _activeJobId;
+  _reconnectPoll = setInterval(async()=>{
+    try{
+      const pr = await fetch('/api/progress/'+jobId);
+      const pd = await pr.json();
+      if(!pd.found){ clearInterval(_reconnectPoll); return; }
+
+      if(pd.status === 'done'){
+        clearInterval(_reconnectPoll);
+        bar.style.width='100%';
+        setTimeout(()=>prog.style.display='none',600);
+        btn.disabled=false; btn.innerHTML='⚡ Swap Faces';
+        showAlert('swapAlert','✅ Processing finished! Check the outputs folder or restart with a new swap.','success');
+        localStorage.removeItem('deeptrace_job_id');
+      } else if(pd.status === 'encoding'){
+        bar.style.width='95%';
+        btn.innerHTML='<span class="spinner"></span> Encoding H.264…';
+      } else if(pd.total > 0){
+        const pct = 20+Math.round(pd.done/pd.total*72);
+        bar.style.width=pct+'%';
+        const eta = pd.eta_seconds>0?(pd.eta_seconds<60?`${pd.eta_seconds}s`:`${Math.round(pd.eta_seconds/60)}m`):'';
+        btn.innerHTML=`<span class="spinner"></span> Frame ${pd.done}/${pd.total} ${eta} · ${pd.fps_proc||0} fps`;
+      }
+    } catch(e){}
+  }, 1000);
+}
+
+// Check on page load
+window.addEventListener('load', ()=>{ setTimeout(checkForActiveJobs, 800); });
+
 // ── Generic helpers ───────────────────────────────────────────────────────────
 function showAlert(elId, msg, type){
   const el = document.getElementById(elId);
-  el.textContent = msg;
+  el.innerHTML = msg;
   el.className = 'alert ' + type;
   el.style.display = 'block';
 }
@@ -941,52 +1232,194 @@ document.getElementById('srcFile').addEventListener('change', function(){
   previewFile(this, 'srcPreview');
 });
 document.getElementById('tgtFile').addEventListener('change', function(){
-  previewFile(this, 'tgtPreview');
+  const file = this.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const isVideo = /\.(mp4|avi|mov|mkv)$/i.test(file.name) || file.type.startsWith('video/');
+
+  // Show image or video preview in the target zone
+  const prevZone = document.getElementById('tgtZone');
+  prevZone.querySelectorAll('img.preview-img, video.preview-img').forEach(el=>el.remove());
+
+  if(isVideo){
+    // Video: disable enhancer by default (too slow per-frame), show video options
+    document.getElementById('enhanceCheck').checked = false;
+    document.getElementById('enhanceHint').textContent = 'OFF by default for video — enable only for short clips';
+    const v = document.createElement('video');
+    v.src = url; v.controls = true; v.muted = true; v.className = 'preview-img';
+    v.style.cssText = 'display:block;max-width:100%;max-height:220px;border-radius:8px;margin-top:10px';
+    v.addEventListener('loadedmetadata', ()=>{
+      const estFrames = Math.round(v.duration * 30);
+      document.getElementById('videoOpts').style.display = 'block';
+      updateTimeEstimate(estFrames);
+    });
+    prevZone.appendChild(v);
+  } else {
+    // Image: enable enhancer by default (fast, big quality boost)
+    document.getElementById('enhanceCheck').checked = true;
+    document.getElementById('enhanceHint').textContent = 'ON by default for images — auto-disabled for video';
+    document.getElementById('videoOpts').style.display = 'none';
+    const img = document.getElementById('tgtPreview');
+    img.src = url; img.style.display='block';
+  }
+
   document.getElementById('swapOutput').style.display='none';
   hideAlert('swapAlert');
 });
 
+// Update live when settings change
+['detectInterval','maxSide','enhanceCheck'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('change', ()=>{
+    const v = document.querySelector('#tgtZone video.preview-img');
+    if(v && v.duration) updateTimeEstimate(Math.round(v.duration * 30));
+  });
+});
+
+function updateTimeEstimate(frames){
+  const enhance = document.getElementById('enhanceCheck').checked;
+  const interval = parseInt(document.getElementById('detectInterval').value || '3');
+  const maxSide  = parseInt(document.getElementById('maxSide').value || '720');
+
+  // Per-frame cost model (empirical CPU estimates)
+  const detectCost = 0.25;   // seconds per detection run
+  const swapCost   = 0.65;   // seconds per swap (inswapper_128)
+  const enhCost    = 3.0;    // seconds per enhance (gfpgan)
+  const resizeFactor = maxSide > 0 ? Math.min(1.0, (maxSide / 1080) ** 1.5) : 1.0;
+
+  const perFrame = (detectCost / interval + swapCost + (enhance ? enhCost : 0)) * resizeFactor;
+  const totalSec = Math.round(frames * perFrame);
+
+  let timeStr;
+  if(totalSec < 60) timeStr = `~${totalSec}s`;
+  else if(totalSec < 3600) timeStr = `~${Math.round(totalSec/60)} min`;
+  else timeStr = `~${(totalSec/3600).toFixed(1)} hr`;
+
+  const fps = (1/perFrame).toFixed(2);
+  document.getElementById('timeEstimate').innerHTML =
+    `⏱ Estimated: <strong style="color:var(--accent)">${timeStr}</strong> &nbsp;|&nbsp; `+
+    `${frames} frames &nbsp;|&nbsp; ~${fps} frames/sec &nbsp;|&nbsp; `+
+    `<span style="color:var(--warn)">Tip: disable enhancer + detect every 10 frames for max speed</span>`;
+}
+
 // ── Swap tab ──────────────────────────────────────────────────────────────────
-async function doSwap(){
+function doSwap(){
   const src = document.getElementById('srcFile').files[0];
   const tgt = document.getElementById('tgtFile').files[0];
   if(!src || !tgt){ showAlert('swapAlert','Select both source and target files','warn'); return; }
 
+  const isVideo = /\.(mp4|avi|mov|mkv)$/i.test(tgt.name) || tgt.type.startsWith('video/');
+  const jobId = Math.random().toString(36).substr(2,9);
+
   const btn = document.getElementById('swapBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Processing…';
+  btn.innerHTML = '<span class="spinner"></span> Uploading…';
   hideAlert('swapAlert');
   document.getElementById('swapOutput').style.display='none';
 
   const prog = document.getElementById('swapProgress');
-  prog.style.display='block';
-  let w=5; const barInter = setInterval(()=>{ w=Math.min(w+2,85); document.getElementById('swapBar').style.width=w+'%'; },400);
+  const bar  = document.getElementById('swapBar');
+  prog.style.display = 'block';
+  bar.style.width = '0%';
+
+  if(isVideo){
+    showAlert('swapAlert',
+      '⏳ Video detected. Processing can take several minutes on CPU. Each frame is processed individually.',
+      'info');
+  }
 
   const fd = new FormData();
   fd.append('source', src);
   fd.append('target', tgt);
   fd.append('enhance', document.getElementById('enhanceCheck').checked ? '1' : '0');
   fd.append('pitch_semitones', document.getElementById('pitchRange').value);
-
-  try {
-    const res = await fetch('/api/swap', {method:'POST', body:fd});
-    const data = await res.json();
-    clearInterval(barInter);
-    document.getElementById('swapBar').style.width='100%';
-    setTimeout(()=>prog.style.display='none',600);
-
-    if(data.success){
-      showAlert('swapAlert', `✅ Done in ${data.processing_time}s — ${data.faces_swapped} face(s) swapped`, 'success');
-      renderOutput(data.output_filename, data.output_type, data.preview_b64);
-    } else {
-      showAlert('swapAlert', '❌ ' + (data.error || 'Swap failed'), 'error');
-    }
-  } catch(e){
-    clearInterval(barInter); prog.style.display='none';
-    showAlert('swapAlert', 'Network error: ' + e.message, 'error');
-  } finally {
-    btn.disabled=false; btn.innerHTML='⚡ Swap Faces';
+  fd.append('job_id', jobId);
+  if(isVideo){
+    fd.append('detect_interval', document.getElementById('detectInterval').value || '5');
+    fd.append('max_side', document.getElementById('maxSide').value || '720');
   }
+
+  // Poll server for frame-by-frame progress + ETA
+  let pollTimer = null;
+  if(isVideo){
+    pollTimer = setInterval(async()=>{
+      try{
+        const pr = await fetch('/api/progress/'+jobId);
+        const pd = await pr.json();
+        if(pd.found && pd.total > 0){
+          if(pd.status === 'encoding'){
+            bar.style.width = '95%';
+            btn.innerHTML = '<span class="spinner"></span> Encoding H.264…';
+          } else if(pd.status === 'processing'){
+            const pct = 20 + Math.round((pd.done/pd.total)*72);
+            bar.style.width = pct+'%';
+            const eta = pd.eta_seconds > 0
+              ? (pd.eta_seconds < 60 ? `${pd.eta_seconds}s left` : `${Math.round(pd.eta_seconds/60)}m left`)
+              : '';
+            const fps = pd.fps_proc > 0 ? ` · ${pd.fps_proc} fps` : '';
+            btn.innerHTML = `<span class="spinner"></span> Frame ${pd.done}/${pd.total} ${eta}${fps}`;
+          }
+        }
+      } catch(e){}
+    }, 1000);
+  }
+
+  // Persist job so page refresh can reconnect
+  if(isVideo) localStorage.setItem('deeptrace_job_id', jobId);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/swap');
+  xhr.timeout = 3600000; // 1 hour for long videos
+
+  xhr.upload.onprogress = (e)=>{
+    if(!e.lengthComputable) return;
+    const pct = Math.round((e.loaded/e.total) * (isVideo ? 15 : 80));
+    bar.style.width = pct+'%';
+    const mb = (e.loaded/1048576).toFixed(1);
+    const tot = (e.total/1048576).toFixed(1);
+    btn.innerHTML = `<span class="spinner"></span> Uploading ${mb}/${tot} MB`;
+  };
+
+  xhr.upload.onload = ()=>{
+    if(isVideo){
+      bar.style.width = '20%';
+      btn.innerHTML = '<span class="spinner"></span> Processing frames…';
+    } else {
+      bar.style.width = '50%';
+      btn.innerHTML = '<span class="spinner"></span> Swapping face…';
+    }
+  };
+
+  xhr.onload = ()=>{
+    if(pollTimer) clearInterval(pollTimer);
+    localStorage.removeItem('deeptrace_job_id');
+    bar.style.width = '100%';
+    setTimeout(()=>{ prog.style.display='none'; bar.style.width='0%'; }, 800);
+    btn.disabled=false; btn.innerHTML='⚡ Swap Faces';
+    try{
+      const data = JSON.parse(xhr.responseText);
+      if(data.success){
+        hideAlert('swapAlert');
+        const extra = isVideo
+          ? ` | ${data.frames_processed} frames @ ${data.fps_achieved} fps (${data.output_resolution||''})`
+          : '';
+        showAlert('swapAlert',`✅ Done in ${data.processing_time}s — ${data.faces_swapped} face(s) swapped${extra}`,'success');
+        renderOutput(data.output_filename, data.output_type, data.preview_b64);
+      } else {
+        showAlert('swapAlert','❌ '+(data.error||'Swap failed'),'error');
+      }
+    } catch(e){ showAlert('swapAlert','Server error – check logs','error'); }
+  };
+
+  xhr.onerror = xhr.ontimeout = ()=>{
+    if(pollTimer) clearInterval(pollTimer);
+    prog.style.display='none';
+    btn.disabled=false; btn.innerHTML='⚡ Swap Faces';
+    localStorage.removeItem('deeptrace_job_id');
+    showAlert('swapAlert','Network error or timeout. Check server logs.','error');
+  };
+
+  xhr.send(fd);
 }
 
 function renderOutput(filename, type, previewB64){
@@ -1092,6 +1525,12 @@ document.getElementById('wcSrcFile').addEventListener('change', async function()
 
 async function toggleCamera(){
   if(camRunning){ stopWebcam(); return; }
+
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showAlert('wcAlert', '📷 Camera access requires a Secure Context.<br>Please access the app via <b>localhost</b> (http://localhost:5000) or use HTTPS.<br><span style="font-size:0.85em;color:var(--muted)">Modern browsers block camera access on IP addresses like 192.168.x.x for security.</span>', 'error');
+    return;
+  }
+
   try{
     camStream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
     const vid = document.getElementById('webcamVideo');

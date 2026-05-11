@@ -1,8 +1,22 @@
-2026-05-03 14:38:08,722 - __main__ - INFO - DeepTrace state initialised
-2026-05-03 14:38:08,723 - __main__ - INFO - Starting DeepTrace v2 on http://0.0.0.0:5000
-2026-05-03 14:38:08,723 - __main__ - INFO - Model warm-up complete
-2026-05-03 14:38:08,755 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+2026-05-11 15:37:20,620 - __main__ - INFO - DeepTrace state initialised
+2026-05-11 15:37:20,623 - __main__ - INFO - Starting DeepTrace v2 on http://0.0.0.0:5000
+2026-05-11 15:37:20,624 - __main__ - INFO - Model warm-up complete
+2026-05-11 15:37:20,784 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5000
- * Running on http://192.168.18.78:5000
-2026-05-03 14:38:08,756 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+ * Running on http://192.168.99.193:5000
+2026-05-11 15:37:20,785 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-11 15:37:40,038 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:37:40] "GET / HTTP/1.1" 200 -
+2026-05-11 15:37:40,455 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:37:40] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-05-11 15:37:41,241 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:37:41] "GET /api/active-jobs HTTP/1.1" 200 -
+2026-05-11 15:38:05,835 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model yoloface_8n succeeded in 0.49 seconds
+2026-05-11 15:38:06,091 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fan_68_5 succeeded in 0.05 seconds
+2026-05-11 15:38:08,200 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model 2dfan4 succeeded in 2.11 seconds
+2026-05-11 15:38:10,981 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model arcface_w600k_r50 succeeded in 1.58 seconds
+2026-05-11 15:38:12,495 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fairface succeeded in 0.96 seconds
+2026-05-11 15:38:12,615 - __main__ - INFO - Source face detected – score 0.884
+2026-05-11 15:38:14,977 - __main__ - INFO - 1 target face(s) detected
+2026-05-11 15:38:21,538 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model inswapper_128_fp16 succeeded in 6.52 seconds
+2026-05-11 15:38:46,905 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model gfpgan_1.4 succeeded in 1.95 seconds
+2026-05-11 15:38:54,633 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:38:54] "POST /api/swap HTTP/1.1" 200 -
+2026-05-11 15:39:00,696 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:39:00] "GET /output/output_1778495884.jpeg HTTP/1.1" 200 -
