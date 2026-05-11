@@ -104,8 +104,8 @@ def initialize_deeptrace() -> bool:
 
         # Masks — softer blur + padding captures full face boundary cleanly
         state_manager.init_item('face_mask_types', ['box'])
-        state_manager.init_item('face_mask_blur', 0.5)          # was 0.3 → smoother edge feathering
-        state_manager.init_item('face_mask_padding', [0, 10, 0, 10])  # was [0,0,0,0] → expand mask top/sides
+        state_manager.init_item('face_mask_blur', 0.6)              # softer inswapper edge feathering
+        state_manager.init_item('face_mask_padding', [0, 20, 30, 20])  # top/right/bottom/left — more bottom for jaw
         state_manager.init_item('face_mask_areas', [])
         state_manager.init_item('face_mask_regions', [])
         state_manager.init_item('face_occluder_model', 'xseg_1')
@@ -237,6 +237,165 @@ def _mux_video_audio(raw_video: str, audio_src: str, output: str,
     except Exception as e:
         logger.error(f'ffmpeg mux exception: {e}')
         return False
+
+
+# ── Professional face blending (LAB colour transfer + Laplacian pyramid) ──────
+def _build_ellipse_mask(h: int, w: int, face,
+                         pad_x_frac: float = 0.22,
+                         pad_top_frac: float = 0.12,
+                         pad_bot_frac: float = 0.38) -> np.ndarray:
+    """
+    Elliptical, Gaussian-feathered face mask sized to the detected bounding box.
+    Extra bottom padding covers the chin/jaw area that box masks miss.
+    """
+    x1, y1, x2, y2 = [int(v) for v in face.bounding_box]
+    fw, fh = x2 - x1, y2 - y1
+
+    px  = max(12, int(fw * pad_x_frac))
+    pt  = max(8,  int(fh * pad_top_frac))
+    pb  = max(18, int(fh * pad_bot_frac))
+
+    x1e = max(0, x1 - px);  y1e = max(0, y1 - pt)
+    x2e = min(w, x2 + px);  y2e = min(h, y2 + pb)
+
+    mask = np.zeros((h, w), dtype=np.uint8)
+    cx, cy = (x1e + x2e) // 2, (y1e + y2e) // 2
+    rx, ry = (x2e - x1e) // 2, (y2e - y1e) // 2
+    cv2.ellipse(mask, (cx, cy), (rx, ry), 0, 0, 360, 255, -1)
+
+    # Feather: kernel ≥ face-width/8, always odd
+    k = max(31, (min(rx, ry) // 4) * 2 + 1)
+    return cv2.GaussianBlur(mask, (k, k), 0)
+
+
+def _lab_colour_transfer(swapped: np.ndarray, original: np.ndarray,
+                          mask: np.ndarray, strength: float = 0.55) -> np.ndarray:
+    """
+    Transfer LAB colour statistics from original→swapped in the OUTER RING of
+    the face mask only (boundary zone).  The face centre is untouched so the
+    source identity is preserved; only the edge pixels shift toward the target
+    skin tone.  Used by FaceShifter, DeepFaceLab and Adobe's Content-Aware Fill.
+
+    strength: 0 = no change, 1 = full match to target colour
+    """
+    # Erode mask to get the 'inner face' region; subtract = outer ring
+    k      = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (61, 61))
+    inner  = cv2.erode(mask, k, iterations=2)
+    ring   = cv2.subtract(mask, inner)                      # boundary zone only
+    ring_f = ring.astype(np.float32) / 255.0
+
+    sw_lab  = cv2.cvtColor(swapped,  cv2.COLOR_BGR2LAB).astype(np.float64)
+    tg_lab  = cv2.cvtColor(original, cv2.COLOR_BGR2LAB).astype(np.float64)
+
+    face_px = mask > 30
+    if not face_px.any():
+        return swapped
+
+    result_lab = sw_lab.copy()
+    for c in range(3):
+        sw_vals = sw_lab[:, :, c][face_px]
+        tg_vals = tg_lab[:, :, c][face_px]
+        sw_mu, sw_sig = sw_vals.mean(), sw_vals.std() + 1e-6
+        tg_mu, tg_sig = tg_vals.mean(), tg_vals.std() + 1e-6
+        # Normalise source statistics to target statistics
+        corrected = (sw_lab[:, :, c] - sw_mu) * (tg_sig / sw_sig) + tg_mu
+        # Blend: full correction at ring, zero at inner face
+        result_lab[:, :, c] = (corrected * ring_f * strength
+                                + sw_lab[:, :, c] * (1.0 - ring_f * strength))
+
+    corrected_bgr = cv2.cvtColor(
+        np.clip(result_lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
+
+    # Apply only inside mask to avoid touching the background
+    m3 = np.dstack([ring_f] * 3)
+    return (corrected_bgr.astype(np.float32) * m3
+            + swapped.astype(np.float32) * (1.0 - m3)).astype(np.uint8)
+
+
+def _laplacian_pyramid_blend(img_a: np.ndarray, img_b: np.ndarray,
+                               mask: np.ndarray, levels: int = 6) -> np.ndarray:
+    """
+    Multi-scale Laplacian pyramid blending (Burt & Adelson 1983).
+    Used in: Adobe Photoshop, DeepFaceLab, computational photography pipelines.
+
+    Blends img_a (swapped) into img_b (original) at every spatial scale,
+    so there are no seam artefacts at any frequency — unlike alpha-blend
+    (sharp at fine scales) or Poisson clone (breaks on large colour gaps).
+    """
+    m  = mask.astype(np.float32) / 255.0
+    m3 = np.dstack([m, m, m])
+    A  = img_a.astype(np.float32)
+    B  = img_b.astype(np.float32)
+
+    # ── Gaussian pyramids ────────────────────────────────────────────────────
+    gp_a, gp_b, gp_m = [A], [B], [m3]
+    for _ in range(levels):
+        gp_a.append(cv2.pyrDown(gp_a[-1]))
+        gp_b.append(cv2.pyrDown(gp_b[-1]))
+        gp_m.append(cv2.pyrDown(gp_m[-1]))
+
+    # ── Laplacian pyramids ───────────────────────────────────────────────────
+    lp_a = [gp_a[levels]]
+    lp_b = [gp_b[levels]]
+    for i in range(levels, 0, -1):
+        h_, w_ = gp_a[i - 1].shape[:2]
+        lp_a.append(gp_a[i - 1] - cv2.pyrUp(gp_a[i], dstsize=(w_, h_)))
+        lp_b.append(gp_b[i - 1] - cv2.pyrUp(gp_b[i], dstsize=(w_, h_)))
+
+    # ── Blend each pyramid level ─────────────────────────────────────────────
+    blended = []
+    for la, lb, gm in zip(lp_a, lp_b, reversed(gp_m)):
+        if gm.shape[:2] != la.shape[:2]:
+            gm = cv2.resize(gm, (la.shape[1], la.shape[0]))
+        blended.append(la * gm + lb * (1.0 - gm))
+
+    # ── Collapse ─────────────────────────────────────────────────────────────
+    out = blended[0]
+    for bp in blended[1:]:
+        h_, w_ = bp.shape[:2]
+        out = cv2.pyrUp(out, dstsize=(w_, h_)) + bp
+
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def _advanced_face_blend(swapped: np.ndarray, original: np.ndarray, faces) -> np.ndarray:
+    """
+    Two-stage professional blending pipeline applied after inswapper + GFPGAN:
+
+    Stage 1 — LAB boundary colour transfer  (closes the skin-tone gap)
+    Stage 2 — Laplacian pyramid compositing (seam-free at all spatial scales)
+
+    Falls back to soft alpha-blend if anything raises.
+    """
+    if not faces:
+        return swapped
+
+    h, w   = original.shape[:2]
+    result = swapped.copy()
+
+    for face in faces:
+        try:
+            mask = _build_ellipse_mask(h, w, face)
+
+            # Stage 1: pull the boundary pixels toward the target skin tone
+            result = _lab_colour_transfer(result, original, mask, strength=0.55)
+
+            # Stage 2: multi-scale pyramid blend for artefact-free seam
+            result = _laplacian_pyramid_blend(result, original, mask, levels=6)
+
+        except Exception as exc:
+            logger.warning(f'Advanced blend failed ({exc}) — alpha fallback')
+            try:
+                x1, y1, x2, y2 = [int(v) for v in face.bounding_box]
+                a = np.zeros((h, w, 1), dtype=np.float32)
+                a[y1:y2, x1:x2] = 1.0
+                a = cv2.GaussianBlur(a, (61, 61), 0)
+                result = (swapped.astype(np.float32) * a
+                          + original.astype(np.float32) * (1.0 - a)).astype(np.uint8)
+            except Exception:
+                result = swapped
+
+    return result
 
 
 # ── Face consistency tracking ─────────────────────────────────────────────────
@@ -376,6 +535,12 @@ def process_image_swap(source_path: str, target_path: str, output_path: str,
         logger.info(f'{len(target_faces)} target face(s) detected')
         result = swap_frame(source_face, target_faces, target_frame,
                             face_indices=face_indices, enhance=enhance)
+
+        # Stage 3: LAB colour transfer + Laplacian pyramid blend
+        active_faces = [target_faces[i] for i in range(len(target_faces))
+                        if face_indices is None or i in face_indices]
+        result = _advanced_face_blend(result, target_frame, active_faces)
+
         ok = write_image(output_path, result)
         if not ok:
             return {'success': False, 'error': 'Failed to write output image'}
