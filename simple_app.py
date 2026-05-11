@@ -89,8 +89,8 @@ def initialize_deeptrace() -> bool:
 
         # Face swapper
         state_manager.init_item('face_swapper_model', 'inswapper_128_fp16')
-        state_manager.init_item('face_swapper_pixel_boost', '256x256')  # was 128x128 → sharper swap region
-        state_manager.init_item('face_swapper_weight', 1.0)             # was 0.5 → full swap, no ghosting
+        state_manager.init_item('face_swapper_pixel_boost', '128x128')  # single-pass, no polyphase tile artifacts
+        state_manager.init_item('face_swapper_weight', 0.5)             # 0.5 = pure source identity (interp maps to 0.0 scalar)
 
         # Face enhancer
         state_manager.init_item('face_enhancer_model', 'gfpgan_1.4')
@@ -104,8 +104,8 @@ def initialize_deeptrace() -> bool:
 
         # Masks — softer blur + padding captures full face boundary cleanly
         state_manager.init_item('face_mask_types', ['box'])
-        state_manager.init_item('face_mask_blur', 0.6)              # softer inswapper edge feathering
-        state_manager.init_item('face_mask_padding', [0, 20, 30, 20])  # top/right/bottom/left — more bottom for jaw
+        state_manager.init_item('face_mask_blur', 0.3)              # tight boundary — old 0.6 bled into ears/lips
+        state_manager.init_item('face_mask_padding', [0, 0, 0, 0])  # zero padding — let blur_area alone define the soft edge
         state_manager.init_item('face_mask_areas', [])
         state_manager.init_item('face_mask_regions', [])
         state_manager.init_item('face_occluder_model', 'xseg_1')
@@ -241,19 +241,19 @@ def _mux_video_audio(raw_video: str, audio_src: str, output: str,
 
 # ── Professional face blending (LAB colour transfer + Laplacian pyramid) ──────
 def _build_ellipse_mask(h: int, w: int, face,
-                         pad_x_frac: float = 0.22,
-                         pad_top_frac: float = 0.12,
-                         pad_bot_frac: float = 0.38) -> np.ndarray:
+                         pad_x_frac: float = 0.08,
+                         pad_top_frac: float = 0.10,
+                         pad_bot_frac: float = 0.12) -> np.ndarray:
     """
     Elliptical, Gaussian-feathered face mask sized to the detected bounding box.
-    Extra bottom padding covers the chin/jaw area that box masks miss.
+    Keep pads tight — the blend handles the transition; large pads bleed into neck/ears.
     """
     x1, y1, x2, y2 = [int(v) for v in face.bounding_box]
     fw, fh = x2 - x1, y2 - y1
 
-    px  = max(12, int(fw * pad_x_frac))
-    pt  = max(8,  int(fh * pad_top_frac))
-    pb  = max(18, int(fh * pad_bot_frac))
+    px  = max(8,  int(fw * pad_x_frac))
+    pt  = max(6,  int(fh * pad_top_frac))
+    pb  = max(10, int(fh * pad_bot_frac))
 
     x1e = max(0, x1 - px);  y1e = max(0, y1 - pt)
     x2e = min(w, x2 + px);  y2e = min(h, y2 + pb)
@@ -263,8 +263,8 @@ def _build_ellipse_mask(h: int, w: int, face,
     rx, ry = (x2e - x1e) // 2, (y2e - y1e) // 2
     cv2.ellipse(mask, (cx, cy), (rx, ry), 0, 0, 360, 255, -1)
 
-    # Feather: kernel ≥ face-width/8, always odd
-    k = max(31, (min(rx, ry) // 4) * 2 + 1)
+    # Feather: proportional to face size but kept moderate
+    k = max(11, (min(rx, ry) // 8) * 2 + 1)
     return cv2.GaussianBlur(mask, (k, k), 0)
 
 
@@ -279,8 +279,8 @@ def _lab_colour_transfer(swapped: np.ndarray, original: np.ndarray,
     strength: 0 = no change, 1 = full match to target colour
     """
     # Erode mask to get the 'inner face' region; subtract = outer ring
-    k      = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (61, 61))
-    inner  = cv2.erode(mask, k, iterations=2)
+    k      = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
+    inner  = cv2.erode(mask, k, iterations=1)
     ring   = cv2.subtract(mask, inner)                      # boundary zone only
     ring_f = ring.astype(np.float32) / 255.0
 
@@ -360,12 +360,14 @@ def _laplacian_pyramid_blend(img_a: np.ndarray, img_b: np.ndarray,
 
 def _advanced_face_blend(swapped: np.ndarray, original: np.ndarray, faces) -> np.ndarray:
     """
-    Two-stage professional blending pipeline applied after inswapper + GFPGAN:
+    Colour-correction pass applied after inswapper + GFPGAN.
 
-    Stage 1 — LAB boundary colour transfer  (closes the skin-tone gap)
-    Stage 2 — Laplacian pyramid compositing (seam-free at all spatial scales)
-
-    Falls back to soft alpha-blend if anything raises.
+    Only LAB boundary colour transfer is used — the pyramid blend was removed
+    because it re-blended the GFPGAN-enhanced result with the original frame,
+    creating the "overlay/double-face" artefact at the jaw and lip boundary.
+    GFPGAN's own paste_back (512×512 crop with feathered box mask) already
+    produces a clean seam; this step just closes any remaining skin-tone gap
+    at the edge ring without re-introducing the original pixels.
     """
     if not faces:
         return swapped
@@ -376,24 +378,9 @@ def _advanced_face_blend(swapped: np.ndarray, original: np.ndarray, faces) -> np
     for face in faces:
         try:
             mask = _build_ellipse_mask(h, w, face)
-
-            # Stage 1: pull the boundary pixels toward the target skin tone
-            result = _lab_colour_transfer(result, original, mask, strength=0.55)
-
-            # Stage 2: multi-scale pyramid blend for artefact-free seam
-            result = _laplacian_pyramid_blend(result, original, mask, levels=6)
-
+            result = _lab_colour_transfer(result, original, mask, strength=0.25)
         except Exception as exc:
-            logger.warning(f'Advanced blend failed ({exc}) — alpha fallback')
-            try:
-                x1, y1, x2, y2 = [int(v) for v in face.bounding_box]
-                a = np.zeros((h, w, 1), dtype=np.float32)
-                a[y1:y2, x1:x2] = 1.0
-                a = cv2.GaussianBlur(a, (61, 61), 0)
-                result = (swapped.astype(np.float32) * a
-                          + original.astype(np.float32) * (1.0 - a)).astype(np.uint8)
-            except Exception:
-                result = swapped
+            logger.warning(f'Colour blend failed ({exc}) — skipping')
 
     return result
 
@@ -484,7 +471,7 @@ def _resize_frame(frame: np.ndarray, max_side: int) -> np.ndarray:
     if max_side <= 0 or max(w, h) <= max_side:
         return frame
     scale = max_side / max(w, h)
-    return cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
+    return cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
 
 def process_image_swap(source_path: str, target_path: str, output_path: str,
@@ -522,8 +509,8 @@ def process_image_swap(source_path: str, target_path: str, output_path: str,
 
     # ── Image swap ───────────────────────────────────────────────────────────
     if is_image(target_path):
-        # Use highest pixel boost for images — quality over speed
-        state_manager.set_item('face_swapper_pixel_boost', '256x256')
+        # Single-pass swap: no polyphase tile artifacts; GFPGAN handles quality enhancement
+        state_manager.set_item('face_swapper_pixel_boost', '128x128')
         target_frame = read_frame(target_path)
         if target_frame is None:
             return {'success': False, 'error': 'Cannot read target image'}
