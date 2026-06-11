@@ -13,7 +13,10 @@ BASE_URL = "https://github.com/facefusion/facefusion-assets/releases/download"
 
 # Additional required models
 MODELS = {
-    # Face Enhancer - GFPGAN 1.4
+    # Face Enhancer - CodeFormer (preferred: gentler on facial hair, less stubble
+    # hallucination than GFPGAN on cross-gender swaps)
+    "codeformer.onnx": f"{BASE_URL}/models-3.0.0/codeformer.onnx",
+    # Face Enhancer - GFPGAN 1.4 (fallback)
     "gfpgan_1.4.onnx": f"{BASE_URL}/models-3.0.0/gfpgan_1.4.onnx",
 }
 

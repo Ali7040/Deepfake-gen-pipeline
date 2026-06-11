@@ -9,7 +9,7 @@ from typing import List, Optional
 from functools import lru_cache
 import threading
 
-from deeptrace.face_detector import detect_many_faces
+from deeptrace import face_analyser
 from deeptrace.types import Face, VisionFrame
 
 # Thread-local storage for face cache
@@ -88,7 +88,7 @@ def detect_faces_optimized(frame: VisionFrame, use_cache: bool = True) -> List[F
     processed_frame = preprocess_frame_fast(frame)
     
     # Detect faces
-    faces = detect_many_faces(processed_frame)
+    faces = face_analyser.get_many_faces([processed_frame])
     
     # Cache results
     if use_cache:

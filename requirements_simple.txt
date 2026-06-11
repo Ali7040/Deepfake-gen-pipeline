@@ -9,6 +9,13 @@ wheel>=0.38.0
 Flask>=3.0.0
 Werkzeug>=3.0.0
 
+# FastAPI stack (new async backend — api/main.py)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
+websockets>=13.0
+pydantic>=2.9.0
+
 # Image/Video processing (compatible with Python 3.13)
 opencv-python>=4.8.0
 numpy>=1.24.0

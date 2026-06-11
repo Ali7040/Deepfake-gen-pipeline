@@ -1,20 +1,28 @@
-2026-05-11 15:56:01,282 - __main__ - INFO - DeepTrace state initialised
-2026-05-11 15:56:01,284 - __main__ - INFO - Model warm-up complete
-2026-05-11 15:56:01,284 - __main__ - INFO - Starting DeepTrace v2 on http://0.0.0.0:5000
-2026-05-11 15:56:01,325 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5000
- * Running on http://192.168.99.193:5000
-2026-05-11 15:56:01,326 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
-2026-05-11 15:56:05,002 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:56:05] "GET / HTTP/1.1" 200 -
-2026-05-11 15:56:05,922 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:56:05] "GET /api/active-jobs HTTP/1.1" 200 -
-2026-05-11 15:56:21,022 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model yoloface_8n succeeded in 0.31 seconds
-2026-05-11 15:56:21,226 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fan_68_5 succeeded in 0.02 seconds
-2026-05-11 15:56:22,736 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model 2dfan4 succeeded in 1.51 seconds
-2026-05-11 15:56:24,348 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model arcface_w600k_r50 succeeded in 1.03 seconds
-2026-05-11 15:56:25,345 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fairface succeeded in 0.6 seconds
-2026-05-11 15:56:25,465 - __main__ - INFO - Source face detected – score 0.841
-2026-05-11 15:56:27,691 - __main__ - INFO - 1 target face(s) detected
-2026-05-11 15:56:32,652 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model inswapper_128_fp16 succeeded in 4.92 seconds
-2026-05-11 15:56:46,385 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model gfpgan_1.4 succeeded in 1.2 seconds
-2026-05-11 15:56:49,990 - werkzeug - INFO - 192.168.99.193 - - [11/May/2026 15:56:49] "POST /api/swap HTTP/1.1" 200 -
+2026-06-06 16:12:17,417 - simple_app - INFO - Detected available execution providers: ['cpu']
+2026-06-06 16:12:17,417 - simple_app - INFO - Face swapper model: hyperswap_1a_256
+2026-06-06 16:12:17,418 - simple_app - INFO - DeepTrace state initialised
+2026-06-06 16:12:17,418 - simple_app - INFO - Face enhancer active: codeformer
+2026-06-06 16:12:17,418 - simple_app - INFO - Model warm-up complete
+2026-06-06 16:12:18,089 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model yoloface_8n succeeded in 0.09 seconds
+2026-06-06 16:12:18,159 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fan_68_5 succeeded in 0.0 seconds
+2026-06-06 16:12:18,962 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model 2dfan4 succeeded in 0.8 seconds
+2026-06-06 16:12:19,727 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model arcface_w600k_r50 succeeded in 0.38 seconds
+2026-06-06 16:12:20,111 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fairface succeeded in 0.19 seconds
+2026-06-06 16:12:20,154 - simple_app - INFO - Source face detected – score 0.817
+2026-06-06 16:12:21,126 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:12:24,102 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model hyperswap_1a_256 succeeded in 2.9 seconds
+2026-06-06 16:12:27,123 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model codeformer succeeded in 1.19 seconds
+2026-06-06 16:12:34,623 - simple_app - INFO - Source face detected – score 0.834
+2026-06-06 16:12:35,976 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:12:46,793 - simple_app - INFO - Source face detected – score 0.817
+2026-06-06 16:12:48,112 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:13:00,067 - simple_app - INFO - Source face detected – score 0.817
+2026-06-06 16:13:01,231 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:13:13,131 - simple_app - INFO - Source face detected – score 0.824
+2026-06-06 16:13:14,364 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:13:24,864 - simple_app - INFO - Source face detected – score 0.807
+2026-06-06 16:13:24,880 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:13:36,899 - simple_app - INFO - Source face detected – score 0.836
+2026-06-06 16:13:38,316 - simple_app - INFO - 1 target face(s) detected
+2026-06-06 16:13:49,796 - simple_app - INFO - Source face detected – score 0.827
+2026-06-06 16:13:49,804 - simple_app - INFO - 1 target face(s) detected
