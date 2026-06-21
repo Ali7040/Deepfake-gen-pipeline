@@ -1,9 +1,13 @@
+import time
 from argparse import ArgumentParser
 from functools import lru_cache
 from typing import List, Optional, Tuple
 
 import cv2
 import numpy
+
+from deeptrace.research import instrument as research_instrument
+from deeptrace.research.config import research_config
 
 import deeptrace.choices
 import deeptrace.jobs.job_manager
@@ -578,12 +582,30 @@ def post_process() -> None:
 		face_recognizer.clear_inference_pool()
 
 
-def swap_face(source_face : Face, target_face : Face, temp_vision_frame : VisionFrame) -> VisionFrame:
+def stabilize_target_landmark(target_face : Face, frame_number : Optional[int]) -> numpy.ndarray:
+	"""
+	Return the 5/68 landmark used for alignment. When the temporal layer is
+	enabled (DEEPTRACE_TEMPORAL=1) and a sequential frame index is available,
+	the landmark is smoothed across frames with a 1-Euro filter to remove
+	jitter; otherwise the raw landmark is returned unchanged (stock behavior).
+	"""
+	raw_landmark_5 = target_face.landmark_set.get('5/68')
+	if not research_config.temporal or frame_number is None:
+		return raw_landmark_5
+	try:
+		from deeptrace.research.temporal.stabilizer import get_stabilizer
+		return get_stabilizer().stabilize(raw_landmark_5, frame_number)
+	except Exception as exception:
+		logger.warn('Landmark stabilization failed: ' + str(exception), __name__)
+		return raw_landmark_5
+
+
+def swap_face_at_resolution(source_face : Face, target_face : Face, temp_vision_frame : VisionFrame, swap_landmark_5 : numpy.ndarray, pixel_boost_size : Tuple[int, int]) -> VisionFrame:
+	"""Produce the swapped frame at a specific pixel-boost resolution."""
 	model_template = get_model_options().get('template')
 	model_size = get_model_options().get('size')
-	pixel_boost_size = unpack_resolution(state_manager.get_item('face_swapper_pixel_boost'))
 	pixel_boost_total = pixel_boost_size[0] // model_size[0]
-	crop_vision_frame, affine_matrix = warp_face_by_face_landmark_5(temp_vision_frame, target_face.landmark_set.get('5/68'), model_template, pixel_boost_size)
+	crop_vision_frame, affine_matrix = warp_face_by_face_landmark_5(temp_vision_frame, swap_landmark_5, model_template, pixel_boost_size)
 	temp_vision_frames = []
 	crop_masks = []
 
@@ -613,7 +635,30 @@ def swap_face(source_face : Face, target_face : Face, temp_vision_frame : Vision
 		crop_masks.append(region_mask)
 
 	crop_mask = numpy.minimum.reduce(crop_masks).clip(0, 1)
-	paste_vision_frame = paste_back(temp_vision_frame, crop_vision_frame, crop_mask, affine_matrix)
+	return paste_back(temp_vision_frame, crop_vision_frame, crop_mask, affine_matrix)
+
+
+def swap_face(source_face : Face, target_face : Face, temp_vision_frame : VisionFrame, frame_number : Optional[int] = None) -> VisionFrame:
+	swap_started_at = time.perf_counter() if research_instrument.is_enabled() else None
+	configured_pixel_boost = unpack_resolution(state_manager.get_item('face_swapper_pixel_boost'))
+	swap_landmark_5 = stabilize_target_landmark(target_face, frame_number)
+
+	if research_config.adaptive:
+		from deeptrace.research.adaptive.controller import run_adaptive_swap
+		paste_vision_frame, used_pixel_boost = run_adaptive_swap(source_face, target_face, temp_vision_frame, swap_landmark_5, configured_pixel_boost, swap_face_at_resolution)
+	else:
+		paste_vision_frame = swap_face_at_resolution(source_face, target_face, temp_vision_frame, swap_landmark_5, configured_pixel_boost)
+		used_pixel_boost = '{}x{}'.format(configured_pixel_boost[0], configured_pixel_boost[1])
+
+	if swap_started_at is not None:
+		research_instrument.record_swap(
+			source_face, target_face, paste_vision_frame,
+			model_name = get_model_name(),
+			pixel_boost = used_pixel_boost,
+			elapsed_ms = (time.perf_counter() - swap_started_at) * 1000.0,
+			frame_index = frame_number,
+		)
+
 	return paste_vision_frame
 
 
@@ -763,12 +808,30 @@ def process_frame(inputs : FaceSwapperInputs) -> ProcessorOutputs:
 	target_vision_frame = inputs.get('target_vision_frame')
 	temp_vision_frame = inputs.get('temp_vision_frame')
 	temp_vision_mask = inputs.get('temp_vision_mask')
+	frame_number = inputs.get('frame_number')
 	source_face = extract_source_face(source_vision_frames)
 	target_faces = select_faces(reference_vision_frame, target_vision_frame)
 
 	if source_face and target_faces:
 		for target_face in target_faces:
 			target_face = scale_face(target_face, target_vision_frame, temp_vision_frame)
-			temp_vision_frame = swap_face(source_face, target_face, temp_vision_frame)
+			temp_vision_frame = swap_face(source_face, target_face, temp_vision_frame, frame_number)
+
+		# Motion-compensated temporal blend of the swapped output (Step 4).
+		# Uses the original target frame only to estimate motion. Guarded so
+		# that with the flag off the swapped frame is returned unchanged.
+		if research_config.flow_blend:
+			temp_vision_frame = apply_flow_blend(target_vision_frame, temp_vision_frame, frame_number)
 
 	return temp_vision_frame, temp_vision_mask
+
+
+def apply_flow_blend(target_vision_frame : VisionFrame, swapped_vision_frame : VisionFrame, frame_number : Optional[int]) -> VisionFrame:
+	if frame_number is None:
+		return swapped_vision_frame
+	try:
+		from deeptrace.research.temporal.flow_blend import get_blender
+		return get_blender().blend(target_vision_frame, swapped_vision_frame, frame_number)
+	except Exception as exception:
+		logger.warn('Flow blend failed: ' + str(exception), __name__)
+		return swapped_vision_frame

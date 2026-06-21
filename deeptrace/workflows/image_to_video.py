@@ -82,10 +82,20 @@ def process_video() -> ErrorCode:
 		source_audio_path = get_first(filter_audio_paths(state_manager.get_item('source_paths')))
 		reference_vision_frame = read_static_video_frame(state_manager.get_item('target_path'), state_manager.get_item('reference_frame_number'))
 
+		from deeptrace.research.config import research_config
+
+		# The temporal layer uses a causal (1-Euro) filter, which requires frames
+		# to be processed in increasing index order. Force a single worker so
+		# completion order matches frame order. No effect when temporal is off.
+		worker_count = state_manager.get_item('execution_thread_count')
+		if research_config.needs_sequential:
+			worker_count = 1
+			logger.info('Temporal mode on: processing frames single-threaded to preserve order', __name__)
+
 		with tqdm(total = len(temp_frame_paths), desc = translator.get('processing'), unit = 'frame', ascii = ' =', disable = state_manager.get_item('log_level') in [ 'warn', 'error' ]) as progress:
 			progress.set_postfix(execution_providers = state_manager.get_item('execution_providers'))
 
-			with ThreadPoolExecutor(max_workers = state_manager.get_item('execution_thread_count')) as executor:
+			with ThreadPoolExecutor(max_workers = worker_count) as executor:
 				futures = []
 				process_temp_frame_partial = partial(
 					process_temp_frame,
@@ -189,7 +199,8 @@ def process_temp_frame(temp_frame_path : str, frame_number : int, reference_visi
 			'source_voice_frame': source_voice_frame,
 			'target_vision_frame': target_vision_frame[:, :, :3],
 			'temp_vision_frame': temp_vision_frame[:, :, :3],
-			'temp_vision_mask': temp_vision_mask
+			'temp_vision_mask': temp_vision_mask,
+			'frame_number': frame_number
 		})
 
 	temp_vision_frame = conditional_merge_vision_mask(temp_vision_frame, temp_vision_mask)

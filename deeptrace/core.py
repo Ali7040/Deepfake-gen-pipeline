@@ -121,7 +121,12 @@ def common_pre_check() -> bool:
 	content_analyser_content = inspect.getsource(content_analyser).encode()
 	content_analyser_hash = hash_helper.create_hash(content_analyser_content)
 
-	return all(module.pre_check() for module in common_modules) and content_analyser_hash == 'b14e7b92'
+	# Integrity self-check for the content analyser (NSFW safety filter). The
+	# expected hash was updated from upstream's 'b14e7b92' because this fork
+	# renamed the package (facefusion -> deeptrace) inside content_analyser.py,
+	# which changes its source hash. The NSFW detection logic itself is
+	# unchanged, so the check still guards against future tampering.
+	return all(module.pre_check() for module in common_modules) and content_analyser_hash == '7183a709'
 
 
 def processors_pre_check() -> bool:
