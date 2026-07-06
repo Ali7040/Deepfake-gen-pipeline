@@ -1,28 +1,8 @@
-2026-06-06 16:12:17,417 - simple_app - INFO - Detected available execution providers: ['cpu']
-2026-06-06 16:12:17,417 - simple_app - INFO - Face swapper model: hyperswap_1a_256
-2026-06-06 16:12:17,418 - simple_app - INFO - DeepTrace state initialised
-2026-06-06 16:12:17,418 - simple_app - INFO - Face enhancer active: codeformer
-2026-06-06 16:12:17,418 - simple_app - INFO - Model warm-up complete
-2026-06-06 16:12:18,089 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model yoloface_8n succeeded in 0.09 seconds
-2026-06-06 16:12:18,159 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fan_68_5 succeeded in 0.0 seconds
-2026-06-06 16:12:18,962 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model 2dfan4 succeeded in 0.8 seconds
-2026-06-06 16:12:19,727 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model arcface_w600k_r50 succeeded in 0.38 seconds
-2026-06-06 16:12:20,111 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model fairface succeeded in 0.19 seconds
-2026-06-06 16:12:20,154 - simple_app - INFO - Source face detected – score 0.817
-2026-06-06 16:12:21,126 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:12:24,102 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model hyperswap_1a_256 succeeded in 2.9 seconds
-2026-06-06 16:12:27,123 - deeptrace - DEBUG - [DEEPTRACE.INFERENCE_MANAGER] loading model codeformer succeeded in 1.19 seconds
-2026-06-06 16:12:34,623 - simple_app - INFO - Source face detected – score 0.834
-2026-06-06 16:12:35,976 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:12:46,793 - simple_app - INFO - Source face detected – score 0.817
-2026-06-06 16:12:48,112 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:13:00,067 - simple_app - INFO - Source face detected – score 0.817
-2026-06-06 16:13:01,231 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:13:13,131 - simple_app - INFO - Source face detected – score 0.824
-2026-06-06 16:13:14,364 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:13:24,864 - simple_app - INFO - Source face detected – score 0.807
-2026-06-06 16:13:24,880 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:13:36,899 - simple_app - INFO - Source face detected – score 0.836
-2026-06-06 16:13:38,316 - simple_app - INFO - 1 target face(s) detected
-2026-06-06 16:13:49,796 - simple_app - INFO - Source face detected – score 0.827
-2026-06-06 16:13:49,804 - simple_app - INFO - 1 target face(s) detected
+2026-07-06 22:42:56,586 - asyncio - DEBUG - Using proactor: IocpProactor
+2026-07-06 22:42:56,648 - simple_app - INFO - Detected available execution providers: ['cpu']
+2026-07-06 22:42:56,649 - simple_app - INFO - Face swapper model: hyperswap_1a_256
+2026-07-06 22:42:56,649 - simple_app - INFO - DeepTrace state initialised
+2026-07-06 22:42:56,650 - deeptrace.api.optimization - INFO - DeepTrace optimizations applied: {'providers': ['CPUExecutionProvider'], 'providers_desc': 'CPU', 'thread_count': 8, 'gpu_enabled': False}
+2026-07-06 22:42:56,652 - deeptrace.api - INFO - DeepTrace state initialised — warmup running in background
+2026-07-06 22:42:56,652 - simple_app - INFO - Face enhancer active: codeformer
+2026-07-06 22:42:56,654 - simple_app - INFO - Model warm-up complete

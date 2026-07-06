@@ -1,72 +1,23 @@
 @echo off
-REM DeepTrace - Fast Face Swap - Startup Script for Windows
-REM Switch to the directory that contains this script (works from anywhere)
-cd /d "%~dp0"
+REM ===========================================================================
+REM  DeepTrace - run the backend. It AUTO-STARTS the generation engine, so this
+REM  single command brings up BOTH detection and generation.
+REM    Frontend / API : http://localhost:8080      (this is what the frontend uses)
+REM    API docs        : http://localhost:8080/docs
+REM    Gen engine      : http://localhost:8000      (spawned automatically)
+REM  First time? Run  setup.bat  before this.
+REM  (Ctrl+C stops the backend AND the engine it started.)
+REM  Legacy Flask UI is still available via:  venv\Scripts\python simple_app.py
+REM ===========================================================================
+cd /d "%~dp0backend"
 
-echo ========================================
-echo   DeepTrace - Starting...
-echo ========================================
-echo.
-
-REM Check if Python is installed
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Python is not installed or not in PATH
-    echo Please install Python 3.10 or later
-    pause
-    exit /b 1
+if not exist ".venv\Scripts\python.exe" (
+  echo Backend venv missing. Run setup.bat first.
+  pause & exit /b 1
 )
 
-echo [OK] Python found
-echo.
-
-REM Check if virtual environment exists
-if not exist "venv" (
-    echo [INFO] Virtual environment not found. Creating...
-    python -m venv venv
-    if errorlevel 1 (
-        echo [ERROR] Failed to create virtual environment
-        pause
-        exit /b 1
-    )
-    echo [OK] Virtual environment created
-)
-
-REM Activate virtual environment
-echo [INFO] Activating virtual environment...
-call venv\Scripts\activate.bat
-echo [OK] Virtual environment activated
-echo.
-
-REM Check if dependencies are installed
-python -c "import flask" >nul 2>&1
-if errorlevel 1 (
-    echo [INFO] Installing dependencies...
-    pip install -r requirements_simple.txt
-    if errorlevel 1 (
-        echo [ERROR] Failed to install dependencies
-        pause
-        exit /b 1
-    )
-    echo [OK] Dependencies installed
-)
-
-echo.
-echo ========================================
-echo   Starting DeepTrace Application
-echo ========================================
-echo.
-echo   Open your browser and go to:
-echo   http://localhost:5000
-echo.
-echo   Press Ctrl+C to stop the server
-echo ========================================
-echo.
-
-REM Start the application
-python simple_app.py
-
-REM Deactivate virtual environment on exit
-deactivate
-
-pause
+echo Starting DeepTrace backend on :8080 (auto-starting gen engine on :8000) ...
+echo Detection is ready immediately; generation is ready once the engine finishes
+echo loading its models (a few seconds after boot).
+echo(
+.venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8080

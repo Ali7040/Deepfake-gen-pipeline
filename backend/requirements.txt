@@ -1,0 +1,15 @@
+# --- Core gateway (fast to install; boots the API + auth + generation proxy) ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+pydantic>=2.7
+pydantic-settings>=2.2
+email-validator>=2.1          # EmailStr validation
+SQLAlchemy>=2.0
+PyJWT>=2.8
+httpx>=0.27                   # async proxy to the swap engine
+requests>=2.31               # forensic report HF call
+
+# --- Detection ML stack lives in requirements-ml.txt (heavy: torch/transformers) ---
+# Install it into the same environment to enable /api/detection/* endpoints:
+#     pip install -r requirements-ml.txt

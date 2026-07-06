@@ -1,6 +1,5 @@
 __pycache__
 .assets
-.claude
 .caches
 .idea
 .jobs
@@ -13,3 +12,12 @@ uploads/source_*
 uploads/target_*
 deeptrace_app.log
 test*.png
+
+# Personal / local docs (not pushed)
+*.md
+
+# Backend local artifacts
+backend/.venv/
+backend/.env
+backend/*.db
+backend/media/
