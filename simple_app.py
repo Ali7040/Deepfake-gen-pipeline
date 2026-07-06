@@ -715,6 +715,31 @@ def detect_faces_in_frame(frame: np.ndarray):
     return faces
 
 
+def _face_area(face) -> float:
+    bb = face.bounding_box
+    return float((bb[2] - bb[0]) * (bb[3] - bb[1]))
+
+
+def pick_source_face(faces):
+    """Choose the SOURCE identity face from a (left→right sorted) detection list.
+
+    A source portrait is the subject of the photo — i.e. the LARGEST, clearest
+    face. The old code took faces[0] (leftmost), which on a group/selfie photo
+    grabbed a tiny, barely-detected background person whose garbage embedding
+    made the swap melt into a rainbow blob. We pick the biggest face and, when
+    several are comparably large, break ties toward the highest detector score.
+    Returns None for an empty list.
+    """
+    if not faces:
+        return None
+    if len(faces) == 1:
+        return faces[0]
+    max_area = max(_face_area(f) for f in faces)
+    # Among faces within 70% of the largest area, prefer the most confident one.
+    contenders = [f for f in faces if _face_area(f) >= 0.7 * max_area]
+    return max(contenders, key=lambda f: f.score_set.get('detector', 0.0))
+
+
 def swap_frame(source_face, target_faces, frame: np.ndarray,
                face_indices=None, enhance: bool = True,
                gender_match_mode: str = 'features_only',
@@ -832,8 +857,9 @@ def process_image_swap(source_path: str, target_path: str, output_path: str,
                 'ensure good lighting, and avoid heavy occlusion.'
             )
         }
-    source_face = source_faces[0]
-    logger.info(f'Source face detected – score {source_face.score_set.get("detector"):.3f}')
+    source_face = pick_source_face(source_faces)
+    logger.info(f'Source face: {len(source_faces)} detected, using largest '
+                f'(area {_face_area(source_face):.0f}, score {source_face.score_set.get("detector"):.3f})')
 
     # ── Image swap ───────────────────────────────────────────────────────────
     if is_image(target_path):
@@ -1156,8 +1182,8 @@ def api_detect_source_faces():
         faces = detect_faces_in_frame(frame)
         if not faces:
             continue
-            
-        face = faces[0]
+
+        face = pick_source_face(faces)
         crop = _crop_face(frame, face)
         detected_faces.append({
             'source_idx': idx,
@@ -1706,17 +1732,18 @@ def webcam_set_source():
             'error': 'No face detected in source image. Use a clear front-facing portrait.'
         }), 400
 
+    src_face = pick_source_face(faces)
     state_manager.set_item('source_paths', [path])
     with _webcam_lock:
-        _webcam_state['source_face'] = faces[0]
+        _webcam_state['source_face'] = src_face
         _webcam_state['source_path'] = path
         _webcam_state['last_result'] = None
 
-    crop = _crop_face(frame, faces[0])
+    crop = _crop_face(frame, src_face)
     return jsonify({
         'success': True,
         'preview_b64': _frame_to_b64(crop),
-        'score': float(faces[0].score_set.get('detector', 0)),
+        'score': float(src_face.score_set.get('detector', 0)),
     })
 
 
