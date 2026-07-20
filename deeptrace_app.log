@@ -1,8 +1,0 @@
-2026-07-06 22:42:56,586 - asyncio - DEBUG - Using proactor: IocpProactor
-2026-07-06 22:42:56,648 - simple_app - INFO - Detected available execution providers: ['cpu']
-2026-07-06 22:42:56,649 - simple_app - INFO - Face swapper model: hyperswap_1a_256
-2026-07-06 22:42:56,649 - simple_app - INFO - DeepTrace state initialised
-2026-07-06 22:42:56,650 - deeptrace.api.optimization - INFO - DeepTrace optimizations applied: {'providers': ['CPUExecutionProvider'], 'providers_desc': 'CPU', 'thread_count': 8, 'gpu_enabled': False}
-2026-07-06 22:42:56,652 - deeptrace.api - INFO - DeepTrace state initialised — warmup running in background
-2026-07-06 22:42:56,652 - simple_app - INFO - Face enhancer active: codeformer
-2026-07-06 22:42:56,654 - simple_app - INFO - Model warm-up complete

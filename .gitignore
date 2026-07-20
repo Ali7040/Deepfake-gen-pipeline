@@ -13,6 +13,14 @@ uploads/target_*
 deeptrace_app.log
 test*.png
 
+# Python virtual environments (huge, machine-specific — never committed)
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+
 # Personal / local docs (not pushed)
 *.md
 

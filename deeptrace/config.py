@@ -141,4 +141,56 @@ ENABLE_PERFORMANCE_LOGGING = True
 # Enable model quantization (INT8)
 # Requires onnxruntime-tools
 ENABLE_MODEL_QUANTIZATION = False
->>>>>>> 389a830 (Add frontend, backend, and deeptrace updates)
+
+# Enable TensorRT optimization (NVIDIA GPUs only)
+ENABLE_TENSORRT = False
+
+# Enable OpenVINO optimization (Intel hardware)
+ENABLE_OPENVINO = False
+
+# Enable multi-scale processing
+ENABLE_MULTISCALE_PROCESSING = False
+
+# Scales for multi-scale processing
+MULTISCALE_FACTORS = [1.0, 0.75, 1.25]
+
+# ===== SAFETY SETTINGS =====
+
+# Enable content analysis
+ENABLE_CONTENT_ANALYSIS = False
+
+# Maximum face age for processing (-1 = no limit)
+MAX_FACE_AGE = -1
+
+# Minimum face age for processing (-1 = no limit)
+MIN_FACE_AGE = -1
+
+# Allowed genders (empty list = all)
+# Options: ['male', 'female']
+ALLOWED_GENDERS = []
+
+# ===== FILE SETTINGS =====
+
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'bmp'}
+
+# Allowed video extensions
+ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
+
+# Maximum image dimensions
+MAX_IMAGE_WIDTH = 4096
+MAX_IMAGE_HEIGHT = 4096
+
+# Maximum video duration in seconds (0 = no limit)
+MAX_VIDEO_DURATION = 0
+
+# ===== DEVELOPMENT SETTINGS =====
+
+# Enable Flask debug mode (DO NOT use in production)
+FLASK_DEBUG = False
+
+# Enable CORS (for API access)
+ENABLE_CORS = False
+
+# API rate limiting (requests per minute, 0 = no limit)
+API_RATE_LIMIT = 0
