@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+:root {
+  --bg-void: #050505;
+  --bg-void-2: #0a0b0d;
+  --ink: #f5f6f8;
+  --ink-dim: #9aa0a8;
+  --ink-faint: #5c6169;
+  --accent-blue: #4ab3ff;
+  --accent-blue-dim: #2a6fa8;
+  --accent-orange: #ff6b35;
+  --line: rgba(255, 255, 255, 0.08);
+  --glass: rgba(255, 255, 255, 0.04);
+}
+
+@theme inline {
+  --color-void: var(--bg-void);
+  --color-void-2: var(--bg-void-2);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-blue-dim: var(--accent-blue-dim);
+  --color-accent-orange: var(--accent-orange);
+  --font-display: var(--font-neue-montreal), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg-void);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg-void);
+  color: var(--ink);
+  font-family: var(--font-display);
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--accent-blue);
+  color: #000;
+}
+
+/* Lenis smooth scroll */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Film grain overlay */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* subtle grid overlay utility */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--line);
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.split-line {
+  overflow: hidden;
+  display: block;
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale(1.04) translate(0, 0);
+  }
+  to {
+    transform: scale(1.14) translate(-1%, -1%);
+  }
+}
+
+.kenburns {
+  animation: kenburns 24s ease-in-out infinite alternate;
+}

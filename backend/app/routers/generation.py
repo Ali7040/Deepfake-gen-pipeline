@@ -116,6 +116,20 @@ async def gen_progress(job_id: str, user: User = Depends(get_current_user)) -> R
     )
 
 
+@router.get("/result/{job_id}")
+async def gen_result(job_id: str, user: User = Depends(get_current_user)) -> Response:
+    """Fetch the final SwapResult for an async job once progress reports done."""
+    try:
+        resp = await get_client().get(f"/api/result/{job_id}")
+    except httpx.HTTPError as exc:
+        raise _bad_gateway(exc)
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        media_type=resp.headers.get("content-type", "application/json"),
+    )
+
+
 @router.get("/active-jobs")
 async def gen_active_jobs(user: User = Depends(get_current_user)) -> Response:
     try:

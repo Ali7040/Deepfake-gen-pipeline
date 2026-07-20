@@ -1,74 +1,144 @@
-from configparser import ConfigParser
-from typing import List, Optional
+"""
+Configuration file for optimized face swap application
+Adjust these settings for your specific needs
+"""
 
-from deeptrace import state_manager
-from deeptrace.common_helper import cast_bool, cast_float, cast_int
+# ===== APPLICATION SETTINGS =====
+APP_HOST = '0.0.0.0'
+APP_PORT = 5000
+APP_DEBUG = False
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
 
-CONFIG_PARSER = None
+# ===== DIRECTORY SETTINGS =====
+UPLOAD_FOLDER = 'uploads'
+OUTPUT_FOLDER = 'outputs'
+TEMP_FOLDER = '.temp'
+MODELS_FOLDER = '.assets/models'
 
+# ===== MODEL SETTINGS =====
 
-def get_config_parser() -> ConfigParser:
-	global CONFIG_PARSER
+# Face Swapper Model
+# Options: 'inswapper_128', 'inswapper_128_fp16', 'ghost_1_256', 'ghost_2_256', 
+#          'ghost_3_256', 'blendswap_256', 'simswap_256', 'hyperswap_1a_256',
+#          'hyperswap_1b_256', 'hyperswap_1c_256'
+# Recommended: 'inswapper_128_fp16' for speed, 'hyperswap_1b_256' for quality
+FACE_SWAPPER_MODEL = 'inswapper_128_fp16'
 
-	if CONFIG_PARSER is None:
-		CONFIG_PARSER = ConfigParser()
-		CONFIG_PARSER.read(state_manager.get_item('config_path'), encoding = 'utf-8')
-	return CONFIG_PARSER
+# Face Detector Model
+# Options: 'retinaface', 'scrfd', 'yolo_face', 'yunet'
+# Recommended: 'yolo_face' for speed, 'retinaface' for accuracy
+FACE_DETECTOR_MODEL = 'yolo_face'
 
+# Face Recognizer Model
+# Options: 'arcface_inswapper', 'arcface_simswap', 'arcface_ghost'
+FACE_RECOGNIZER_MODEL = 'arcface_inswapper'
 
-def clear_config_parser() -> None:
-	global CONFIG_PARSER
+# Face Landmarker Model
+# Options: '2dfan4', 'peppa_wutz'
+FACE_LANDMARKER_MODEL = '2dfan4'
 
-	CONFIG_PARSER = None
+# ===== DETECTION SETTINGS =====
 
+# Face detector size (larger = more accurate but slower)
+# Options: '320x320', '640x640', '960x960', '1280x1280'
+FACE_DETECTOR_SIZE = '640x640'
 
-def get_str_value(section : str, option : str, fallback : Optional[str] = None) -> Optional[str]:
-	config_parser = get_config_parser()
+# Face detector confidence threshold (0.0-1.0)
+# Lower = detect more faces (including false positives)
+# Higher = only detect clear faces
+FACE_DETECTOR_SCORE = 0.5
 
-	if config_parser.has_option(section, option) and config_parser.get(section, option).strip():
-		return config_parser.get(section, option)
-	return fallback
+# Face recognizer similarity threshold (0.0-1.0)
+# Lower = more lenient matching
+# Higher = stricter matching
+FACE_RECOGNIZER_SIMILARITY = 0.6
 
+# ===== EXECUTION SETTINGS =====
 
-def get_int_value(section : str, option : str, fallback : Optional[str] = None) -> Optional[int]:
-	config_parser = get_config_parser()
+# Execution providers (in order of preference)
+# For NVIDIA GPU: ['CUDAExecutionProvider', 'CPUExecutionProvider']
+# For CPU only: ['CPUExecutionProvider']
+# For AMD GPU: ['ROCMExecutionProvider', 'CPUExecutionProvider']
+# For Intel GPU: ['OpenVINOExecutionProvider', 'CPUExecutionProvider']
+EXECUTION_PROVIDERS = ['CUDAExecutionProvider', 'CPUExecutionProvider']
 
-	if config_parser.has_option(section, option) and config_parser.get(section, option).strip():
-		return config_parser.getint(section, option)
-	return cast_int(fallback)
+# GPU device IDs to use (0 for first GPU, [0,1] for multi-GPU)
+EXECUTION_DEVICE_IDS = [0]
 
+# Number of threads for inference
+# 0 = auto-detect
+# Recommended: 4-8 for most systems
+INTRA_OP_NUM_THREADS = 4
+INTER_OP_NUM_THREADS = 4
 
-def get_float_value(section : str, option : str, fallback : Optional[str] = None) -> Optional[float]:
-	config_parser = get_config_parser()
+# ===== PERFORMANCE SETTINGS =====
 
-	if config_parser.has_option(section, option) and config_parser.get(section, option).strip():
-		return config_parser.getfloat(section, option)
-	return cast_float(fallback)
+# Enable face detection caching
+ENABLE_FACE_CACHE = True
 
+# Face cache size (number of frames to cache)
+FACE_CACHE_SIZE = 50
 
-def get_bool_value(section : str, option : str, fallback : Optional[str] = None) -> Optional[bool]:
-	config_parser = get_config_parser()
+# Batch size for processing multiple frames
+BATCH_SIZE = 8
 
-	if config_parser.has_option(section, option) and config_parser.get(section, option).strip():
-		return config_parser.getboolean(section, option)
-	return cast_bool(fallback)
+# Number of threads for parallel processing
+NUM_THREADS = 4
 
+# Enable memory optimization
+ENABLE_MEMORY_OPTIMIZATION = True
 
-def get_str_list(section : str, option : str, fallback : Optional[str] = None) -> Optional[List[str]]:
-	config_parser = get_config_parser()
+# System memory limit in GB (0 = no limit)
+SYSTEM_MEMORY_LIMIT = 0
 
-	if config_parser.has_option(section, option) and config_parser.get(section, option).strip():
-		return config_parser.get(section, option).split()
-	if fallback:
-		return fallback.split()
-	return None
+# ===== QUALITY SETTINGS =====
 
+# Enable enhanced preprocessing
+ENABLE_ENHANCED_PREPROCESSING = True
 
-def get_int_list(section : str, option : str, fallback : Optional[str] = None) -> Optional[List[int]]:
-	config_parser = get_config_parser()
+# Enable CLAHE (Contrast Limited Adaptive Histogram Equalization)
+ENABLE_CLAHE = True
 
-	if config_parser.has_option(section, option) and config_parser.get(section, option).strip():
-		return list(map(int, config_parser.get(section, option).split()))
-	if fallback:
-		return list(map(int, fallback.split()))
-	return None
+# Enable histogram matching
+ENABLE_HISTOGRAM_MATCHING = True
+
+# Enable multi-band blending
+ENABLE_MULTIBAND_BLENDING = True
+
+# Blending feather amount (0.0-1.0)
+BLENDING_FEATHER = 0.3
+
+# Detail preservation amount (0.0-1.0)
+DETAIL_PRESERVATION = 0.95
+
+# ===== OUTPUT SETTINGS =====
+
+# Output image quality (1-100)
+OUTPUT_IMAGE_QUALITY = 95
+
+# Output image format
+# Options: 'jpg', 'png', 'webp'
+OUTPUT_IMAGE_FORMAT = 'png'
+
+# Output video codec
+# Options: 'libx264', 'libx265', 'libvpx-vp9'
+OUTPUT_VIDEO_CODEC = 'libx264'
+
+# Output video quality (0-51, lower is better)
+OUTPUT_VIDEO_QUALITY = 18
+
+# ===== LOGGING SETTINGS =====
+
+# Log level
+# Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+LOG_LEVEL = 'INFO'
+
+# Enable performance logging
+ENABLE_PERFORMANCE_LOGGING = True
+
+# ===== ADVANCED SETTINGS =====
+
+# Enable model quantization (INT8)
+# Requires onnxruntime-tools
+ENABLE_MODEL_QUANTIZATION = False
+>>>>>>> 389a830 (Add frontend, backend, and deeptrace updates)

@@ -1,0 +1,14 @@
+# --- Detection ML stack (heavy; only needed for /api/detection/* endpoints) ---
+# CPU wheels. For CUDA, install the matching torch build from pytorch.org first.
+#
+# IMPORTANT install order (facenet-pytorch pins an ancient numpy<1.25 that has no
+# Python-3.13 wheel and would try to build from source):
+#   1) pip install -r requirements-ml.txt
+#   2) pip install --no-deps facenet-pytorch>=2.6     # MTCNN, without its stale pins
+#
+numpy>=2.1
+torch>=2.5
+torchvision>=0.20
+transformers>=4.40
+Pillow>=10.0
+opencv-python>=4.9
