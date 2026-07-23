@@ -98,10 +98,9 @@ Originally developed as a research project, DeepTrace has evolved into a complet
 
 
 ## Deepfake Generation
-
-
-
-
+<img width="952" height="465" alt="Screenshot 2026-07-22 194535" src="https://github.com/user-attachments/assets/d2cc37a1-c6c4-40d3-8af7-458725b558d6" />
+<img width="950" height="468" alt="Screenshot 2026-07-22 200831" src="https://github.com/user-attachments/assets/17f1f5ab-d44c-42e1-ba92-faff5596beb6" />
+<img width="948" height="467" alt="Screenshot 2026-07-23 224035" src="https://github.com/user-attachments/assets/d968c61a-a74f-492f-827a-9c1808a84077" />
 
 
 
